@@ -1326,7 +1326,13 @@ async function openVariables(projectId, serviceId, environmentId, projectName, s
   try {
     const data = await api(`/api/host/projects/${projectId}/variables?serviceId=${encodeURIComponent(serviceId)}`);
     varsCtx.environmentId = data.environmentId || environmentId;
-    $("#vars-text").value = Object.entries(data.variables || {})
+    const entries = Object.entries(data.variables || {});
+    const publicDomain = (data.variables?.RAILWAY_PUBLIC_DOMAIN || data.variables?.RAILWAY_STATIC_URL || "").trim();
+    $("#vars-sub").textContent = publicDomain
+      ? `${projectName} · app URL: https://${publicDomain}`
+      : `${projectName} — shared across the service`;
+    $("#vars-text").value = entries
+      .filter(([key]) => !key.startsWith("RAILWAY_"))
       .map(([key, value]) => `${key}=${value}`)
       .join("\n");
   } catch (err) {
@@ -1369,6 +1375,24 @@ async function saveVars() {
 }
 
 /* ---------------- owner: database ---------------- */
+
+const DB_URL_KEY = "ghost.dbUrl";
+
+async function healDatabase() {
+  try {
+    const saved = localStorage.getItem(DB_URL_KEY);
+    if (!saved) return false;
+    const data = await api("/api/db/status");
+    if ((data.urls || []).length) return false;
+    await api("/api/db/urls", { method: "POST", body: { label: "Auto-restore", url: saved } });
+    toast("Database reconnected automatically.");
+    if (state.owner.view === "console" && state.owner.tab === "database") loadDb();
+    else loadPublic();
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 async function loadDb() {
   try {
@@ -1436,6 +1460,7 @@ async function addDbUrl(event) {
   }
   try {
     await api("/api/db/urls", { method: "POST", body: { label: $("#db-label").value.trim(), url } });
+    localStorage.setItem(DB_URL_KEY, url);
     $("#db-url").value = "";
     $("#db-label").value = "";
     toast("MongoDB saved.");
@@ -1487,6 +1512,7 @@ function wireLogin() {
       $("#login-modal").close();
       openConsole();
       toast("Console unlocked.");
+      healDatabase();
     } catch (err) {
       error.textContent = err.message;
     } finally {
@@ -1517,6 +1543,7 @@ async function boot() {
 
   await loadPublic();
   await refreshMyJobs();
+  if (state.session?.authed) healDatabase();
 
   const uptimeTick = () => {
     if (!state.meta || !state.session) return;

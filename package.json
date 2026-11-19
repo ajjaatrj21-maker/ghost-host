@@ -1,6 +1,6 @@
 {
   "name": "ghosthost",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "private": true,
   "description": "GHOST HOST - free anime-styled 24/7 Railway hosting panel with ZIP/GitHub deploys, live logs, owner vault and MongoDB failover",
   "main": "server.js",

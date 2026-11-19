@@ -530,6 +530,34 @@ async function anyTokenSecret(explicitId) {
   return null;
 }
 
+async function withAnyToken(explicitId, fn) {
+  const secrets = [];
+  if (explicitId) {
+    const secret = await db.getTokenSecret(String(explicitId));
+    if (secret) secrets.push(secret);
+  }
+  for (const token of await db.listTokens()) {
+    if (!token.active || token.status === "error") continue;
+    const secret = await db.getTokenSecret(token.id);
+    if (secret && !secrets.includes(secret)) secrets.push(secret);
+  }
+  if (!secrets.length) {
+    const err = new Error("Add a deploy token to the pool first");
+    err.status = 400;
+    throw err;
+  }
+  let lastError = null;
+  for (const secret of secrets) {
+    try {
+      return await fn(secret);
+    } catch (err) {
+      lastError = err;
+      if (!/not authorized/i.test(err.message)) throw err;
+    }
+  }
+  throw lastError;
+}
+
 app.get(
   "/api/host/projects",
   ah(async (req, res) => {
@@ -564,51 +592,61 @@ app.get("/api/open/project/:id", (req, res) => {
 app.get(
   "/api/host/projects/:id/variables",
   ah(async (req, res) => {
-    const secret = await anyTokenSecret(req.query.tokenId);
-    if (!secret) return res.status(400).json({ error: "Add a deploy token to the pool first" });
-    const info = await rw.projectInfo(secret, req.params.id);
-    const envId = String(req.query.environmentId || "") || info.environments[0]?.id;
-    if (!envId) return res.status(400).json({ error: "No environment on this project." });
-    const variables = await rw.getVariables(secret, {
-      projectId: req.params.id,
-      environmentId: envId,
-      serviceId: String(req.query.serviceId || "") || undefined,
+    const data = await withAnyToken(req.query.tokenId, async (secret) => {
+      const info = await rw.projectInfo(secret, req.params.id);
+      const envId = String(req.query.environmentId || "") || info.environments[0]?.id;
+      if (!envId) {
+        const err = new Error("No environment on this project.");
+        err.status = 400;
+        throw err;
+      }
+      const variables = await rw.getVariables(secret, {
+        projectId: req.params.id,
+        environmentId: envId,
+        serviceId: String(req.query.serviceId || "") || undefined,
+      });
+      return { environmentId: envId, variables };
     });
-    res.json({ ok: true, environmentId: envId, variables });
+    res.json({ ok: true, ...data });
   })
 );
 
 app.post(
   "/api/host/projects/:id/variables",
   ah(async (req, res) => {
-    const secret = await anyTokenSecret(req.body?.tokenId);
-    if (!secret) return res.status(400).json({ error: "Add a deploy token to the pool first" });
     const variables = {};
     for (const [key, value] of Object.entries(req.body?.variables || {})) {
       if (!/^[A-Za-z_][A-Za-z0-9_]{0,63}$/.test(key)) continue;
       variables[key] = String(value ?? "").slice(0, 4000);
     }
-    const info = await rw.projectInfo(secret, req.params.id);
-    const envId = String(req.body?.environmentId || "") || info.environments[0]?.id;
-    if (!envId) return res.status(400).json({ error: "No environment on this project." });
-    await rw.upsertVariables(secret, {
-      projectId: req.params.id,
-      environmentId: envId,
-      serviceId: String(req.body?.serviceId || "") || undefined,
-      variables,
-      skipDeploys: false,
+    const count = await withAnyToken(req.body?.tokenId, async (secret) => {
+      const info = await rw.projectInfo(secret, req.params.id);
+      const envId = String(req.body?.environmentId || "") || info.environments[0]?.id;
+      if (!envId) {
+        const err = new Error("No environment on this project.");
+        err.status = 400;
+        throw err;
+      }
+      await rw.upsertVariables(secret, {
+        projectId: req.params.id,
+        environmentId: envId,
+        serviceId: String(req.body?.serviceId || "") || undefined,
+        variables,
+        skipDeploys: false,
+      });
+      return Object.keys(variables).length;
     });
-    res.json({ ok: true, count: Object.keys(variables).length });
+    res.json({ ok: true, count });
   })
 );
 
 app.get(
   "/api/host/deployments/:id/logs",
   ah(async (req, res) => {
-    const secret = await anyTokenSecret(req.query.tokenId);
-    if (!secret) return res.status(400).json({ error: "Add a deploy token to the pool first" });
     const limit = Math.min(500, Number(req.query.limit) || 250);
-    const logs = await rw.deploymentLogs(secret, req.params.id, limit);
+    const logs = await withAnyToken(req.query.tokenId, (secret) =>
+      rw.deploymentLogs(secret, req.params.id, limit)
+    );
     res.json({ ok: true, logs });
   })
 );
@@ -616,19 +654,19 @@ app.get(
 app.get(
   "/api/host/projects/:id",
   ah(async (req, res) => {
-    const secret = await anyTokenSecret(req.query.tokenId);
-    if (!secret) return res.status(400).json({ error: "Add a deploy token to the pool first" });
-    const project = await rw.projectInfo(secret, req.params.id);
+    const project = await withAnyToken(req.query.tokenId, (secret) => rw.projectInfo(secret, req.params.id));
     const withDeployments = [];
     for (const service of project.services) {
       let latest = [];
       try {
-        latest = await rw.listDeployments(secret, {
-          projectId: project.id,
-          serviceId: service.id,
-          environmentId: project.environments[0]?.id,
-          first: 3,
-        });
+        latest = await withAnyToken(req.query.tokenId, (secret) =>
+          rw.listDeployments(secret, {
+            projectId: project.id,
+            serviceId: service.id,
+            environmentId: project.environments[0]?.id,
+            first: 3,
+          })
+        );
       } catch {
         /* ignore per-service errors */
       }
@@ -647,9 +685,7 @@ app.get(
 app.delete(
   "/api/host/projects/:id",
   ah(async (req, res) => {
-    const secret = await anyTokenSecret(req.query.tokenId);
-    if (!secret) return res.status(400).json({ error: "Add a deploy token to the pool first" });
-    await rw.deleteProject(secret, req.params.id);
+    await withAnyToken(req.query.tokenId, (secret) => rw.deleteProject(secret, req.params.id));
     res.json({ ok: true });
   })
 );
