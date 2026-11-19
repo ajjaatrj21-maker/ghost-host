@@ -35,6 +35,8 @@ const state = {
 const esc = (value) =>
   String(value ?? "").replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]));
 
+const appHref = (id) => `/go/${encodeURIComponent(String(id))}/`;
+
 function timeAgo(iso) {
   if (!iso) return "—";
   const diff = Date.now() - new Date(iso).getTime();
@@ -396,7 +398,7 @@ function applyLiveStatus(job) {
   $("#live-stage").textContent = job.stage || job.status || "Queued";
   const url = job.deploymentUrl;
   if (url) {
-    $("#live-url").href = url;
+    $("#live-url").href = appHref(job.id);
     $("#live-url").hidden = false;
   }
   const done = ["success", "failed", "canceled", "interrupted"].includes(job.status);
@@ -654,7 +656,7 @@ function applyOwnerStatus(job) {
   $("#c-live-dot").className = `status-dot ${job.status || ""}`;
   $("#c-live-stage").textContent = job.stage || job.status;
   if (job.deploymentUrl) {
-    $("#c-live-url").href = job.deploymentUrl;
+    $("#c-live-url").href = appHref(job.id);
     $("#c-live-url").hidden = false;
   }
   const done = ["success", "failed", "canceled", "interrupted"].includes(job.status);
@@ -1080,7 +1082,7 @@ function renderJobs() {
         <td>
           <div class="actions">
             <button class="btn btn-quiet btn-sm" data-job="${esc(job.id)}" data-act="logs">Logs</button>
-            ${job.deploymentUrl ? `<a class="btn btn-quiet btn-sm" href="${esc(job.deploymentUrl)}" target="_blank" rel="noopener">Open</a>` : ""}
+            ${job.deploymentUrl ? `<a class="btn btn-quiet btn-sm" href="${appHref(job.id)}" target="_blank" rel="noopener">Open</a>` : ""}
             ${
               ["queued", "running"].includes(job.status)
                 ? `<button class="btn btn-danger btn-sm" data-job="${esc(job.id)}" data-act="cancel">Stop</button>`
@@ -1251,7 +1253,7 @@ async function toggleProjectDetail(card) {
             return `<div class="svc-row" data-svc="${esc(svc.id)}">
               <div class="svc-info">
                 <b>${esc(svc.name)}</b>
-                <span>${esc(dep ? friendlyDeployStatus(dep.status) : url ? "live" : "no deployment yet")}${url ? ` · <a href="${esc(url)}" target="_blank" rel="noopener">Open app</a>` : ""}</span>
+                <span>${esc(dep ? friendlyDeployStatus(dep.status) : url ? "live" : "no deployment yet")}${url ? ` · <a href="${appHref(svc.id)}" target="_blank" rel="noopener">Open app</a>` : ""}</span>
               </div>
               <div class="svc-actions">
                 <button class="btn btn-quiet btn-sm" data-act="logs" data-dep="${esc(dep?.id || "")}" data-name="${esc(svc.name)}">Logs</button>
@@ -1329,10 +1331,7 @@ async function openVariables(projectId, serviceId, environmentId, projectName, s
     const data = await api(`/api/host/projects/${projectId}/variables?serviceId=${encodeURIComponent(serviceId)}`);
     varsCtx.environmentId = data.environmentId || environmentId;
     const entries = Object.entries(data.variables || {});
-    const publicDomain = (data.variables?.RAILWAY_PUBLIC_DOMAIN || data.variables?.RAILWAY_STATIC_URL || "").trim();
-    $("#vars-sub").textContent = publicDomain
-      ? `${projectName} · app URL: https://${publicDomain}`
-      : `${projectName} — shared across the service`;
+    $("#vars-sub").textContent = `${projectName} — variables apply to this service`;
     $("#vars-text").value = entries
       .filter(([key]) => !key.startsWith("RAILWAY_"))
       .map(([key, value]) => `${key}=${value}`)

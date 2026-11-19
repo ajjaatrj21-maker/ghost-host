@@ -2,6 +2,7 @@ const express = require("express");
 const crypto = require("crypto");
 const path = require("path");
 const fs = require("fs");
+const { Readable } = require("stream");
 const multer = require("multer");
 const config = require("./lib/config");
 const db = require("./lib/db");
@@ -13,6 +14,149 @@ const app = express();
 app.set("trust proxy", true);
 app.disable("x-powered-by");
 app.use(express.json({ limit: "1mb" }));
+
+/* ---------------- app gateway ----------------
+   Every "Open" link goes through /go/<id>/ so the visitor only ever sees
+   our own address bar; the backing app host is resolved server-side. */
+
+const LINK_CACHE = new Map();
+
+function rememberAppLinks(project) {
+  for (const svc of project.services || []) {
+    if (svc.publicUrl) LINK_CACHE.set(String(svc.id), svc.publicUrl);
+  }
+  const first = (project.services || []).map((s) => s.publicUrl).find(Boolean);
+  if (first) LINK_CACHE.set(String(project.id), first);
+}
+
+async function resolveAppUrl(key) {
+  const live = jobs.jobs.get(key);
+  if (live?.deploymentUrl) return live.deploymentUrl;
+  const row = await db.findDeployment(key);
+  if (row?.deploymentUrl) return row.deploymentUrl;
+  return LINK_CACHE.get(key) || "";
+}
+
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function rewriteMarkup(text, key, origin) {
+  const prefix = `/go/${key}`;
+  const host = new URL(origin).host;
+  let out = text;
+  out = out.replace(/(\b(?:href|src|action|poster|formaction)\s*=\s*)(["'])\/(?!\/)/gi, `$1$2${prefix}/`);
+  out = out.replace(new RegExp(`https?://${escapeRegExp(host)}(?![\\w.-])`, "gi"), prefix);
+  out = out.replace(/url\((\s*)(["']?)\/(?!\/)/gi, `url($1$2${prefix}/`);
+  out = out.replace(/<base\b[^>]*>/gi, "");
+  return out;
+}
+
+function rewriteLocation(location, key, origin) {
+  if (!location) return location;
+  if (location.startsWith("/")) return `/go/${key}${location}`;
+  const host = new URL(origin).host;
+  const match = location.match(/^https?:\/\/[^/]+/i);
+  if (match && match[0].toLowerCase().endsWith(host.toLowerCase())) {
+    return `/go/${key}${location.slice(match[0].length) || "/"}`;
+  }
+  return location;
+}
+
+function proxyErrorPage(res, status, message) {
+  res.status(status).setHeader("Content-Type", "text/html; charset=utf-8");
+  res.end(`<!doctype html><html><head><meta charset="utf-8"><title>GHOST HOST</title>
+<style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#06070b;color:#e8ecf5;font-family:Inter,system-ui,sans-serif;text-align:center}
+div{max-width:380px;padding:32px}h1{font-size:20px;margin:0 0 8px}p{color:#8f9ab0;font-size:13.5px;line-height:1.6;margin:0 0 20px}
+a{display:inline-block;padding:10px 18px;border-radius:10px;background:linear-gradient(120deg,#8b5cf6,#22d3ee);color:#06070b;font-weight:700;text-decoration:none;font-size:13px}</style>
+</head><body><div><h1>${message}</h1><p>This app is still waking up or was just changed. Refresh in a few seconds.</p><a href="">Try again</a></div></body></html>`);
+}
+
+app.use("/go/:key", async (req, res, next) => {
+  try {
+    const key = String(req.params.key || "");
+    if (!/^[A-Za-z0-9_-]{2,80}$/.test(key)) return proxyErrorPage(res, 404, "App not found");
+    const target = await resolveAppUrl(key);
+    if (!target) return proxyErrorPage(res, 404, "This app has no live URL yet");
+    const base = new URL(/^https?:\/\//i.test(target) ? target : `https://${target}`);
+    if (base.hostname === String(req.headers.host || "").split(":")[0]) {
+      return proxyErrorPage(res, 508, "Loop detected");
+    }
+    const suffix = req.url || "/";
+    const dest = new URL(base.origin + (suffix.startsWith("/") ? suffix : `/${suffix}`));
+
+    const headers = {};
+    for (const [name, value] of Object.entries(req.headers)) {
+      const lower = name.toLowerCase();
+      if (["host", "connection", "content-length", "accept-encoding", "cookie", "x-forwarded-for", "x-forwarded-host", "x-forwarded-proto", "x-real-ip"].includes(lower)) continue;
+      headers[lower] = value;
+    }
+    headers["accept-encoding"] = "identity";
+    headers["x-forwarded-host"] = req.headers.host || "";
+    headers["x-forwarded-proto"] = "https";
+
+    let body;
+    if (!["GET", "HEAD"].includes(req.method)) {
+      if (Buffer.isBuffer(req.body)) body = req.body;
+      else if (req.body && typeof req.body === "object") body = JSON.stringify(req.body);
+    }
+
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 25000);
+    let upstream;
+    try {
+      upstream = await fetch(dest, {
+        method: req.method,
+        headers,
+        body,
+        redirect: "manual",
+        signal: controller.signal,
+      });
+    } catch {
+      clearTimeout(timer);
+      return proxyErrorPage(res, 502, "The app is not responding");
+    }
+    clearTimeout(timer);
+
+    const skip = new Set([
+      "content-encoding",
+      "transfer-encoding",
+      "connection",
+      "keep-alive",
+      "content-length",
+      "set-cookie",
+      "content-security-policy",
+      "strict-transport-security",
+      "permissions-policy",
+    ]);
+    res.status(upstream.status);
+    for (const [name, value] of upstream.headers) {
+      if (!skip.has(name)) res.setHeader(name, value);
+    }
+
+    const cookies = typeof upstream.headers.getSetCookie === "function" ? upstream.headers.getSetCookie() : [];
+    for (const cookie of cookies) {
+      res.append(
+        "Set-Cookie",
+        cookie.replace(/;\s*domain=[^;]*/gi, "").replace(/;\s*path=[^;]*/gi, `; Path=/go/${key}`)
+      );
+    }
+
+    const location = upstream.headers.get("location");
+    if (location) res.setHeader("Location", rewriteLocation(location, key, base.origin));
+
+    const type = String(upstream.headers.get("content-type") || "").toLowerCase();
+    if (type.includes("text/html") || type.includes("text/css")) {
+      const text = await upstream.text();
+      res.end(rewriteMarkup(text, key, base.origin));
+      return;
+    }
+    if (!upstream.body) return res.end();
+    Readable.fromWeb(upstream.body).pipe(res);
+  } catch (err) {
+    next(err);
+  }
+});
 
 app.use((req, res, next) => {
   res.setHeader("X-Content-Type-Options", "nosniff");
@@ -689,6 +833,7 @@ app.get(
         services: withDeployments,
       },
     });
+    rememberAppLinks({ ...project, services: withDeployments });
   })
 );
 
