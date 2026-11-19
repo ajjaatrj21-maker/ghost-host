@@ -1080,10 +1080,11 @@ function renderJobs() {
         <td>
           <div class="actions">
             <button class="btn btn-quiet btn-sm" data-job="${esc(job.id)}" data-act="logs">Logs</button>
+            ${job.deploymentUrl ? `<a class="btn btn-quiet btn-sm" href="${esc(job.deploymentUrl)}" target="_blank" rel="noopener">Open</a>` : ""}
             ${
               ["queued", "running"].includes(job.status)
                 ? `<button class="btn btn-danger btn-sm" data-job="${esc(job.id)}" data-act="cancel">Stop</button>`
-                : `<button class="btn btn-quiet btn-sm" data-job="${esc(job.id)}" data-act="delete">Delete</button>`
+                : `<button class="btn btn-danger btn-sm" data-job="${esc(job.id)}" data-act="delete">Delete</button>`
             }
           </div>
         </td>
@@ -1125,9 +1126,11 @@ async function jobAction(id, action) {
       return;
     }
     if (action === "delete") {
-      if (!confirm("Delete this deployment record?")) return;
-      await api(`/api/jobs/${id}`, { method: "DELETE" });
+      if (!confirm("Delete this app? Its live site and services will be removed permanently.")) return;
+      const data = await api(`/api/jobs/${id}`, { method: "DELETE" });
+      toast(data.projectDeleted ? "App and its live site deleted." : "Deployment record deleted.");
       loadJobs();
+      loadProjects().catch(() => {});
       return;
     }
     if (action === "logs") openLogs(id);
@@ -1200,7 +1203,6 @@ async function loadProjects() {
           <p class="pmeta">${esc([project.workspace, project.tokenLabel].filter(Boolean).join(" · "))}${project.workspace || project.tokenLabel ? " · " : ""}${esc(project.id)}</p>
           <div class="prow">
             <button class="btn btn-quiet btn-sm" data-manage>Manage</button>
-            <a href="/api/open/project/${esc(project.id)}" target="_blank" rel="noopener">Open ↗</a>
             <button class="btn btn-danger btn-sm" data-del>Delete</button>
           </div>
           <div class="svc-list" hidden></div>
@@ -1245,11 +1247,11 @@ async function toggleProjectDetail(card) {
       ? services
           .map((svc) => {
             const dep = (svc.deployments || [])[0];
-            const url = dep && (dep.url || dep.staticUrl);
+            const url = svc.publicUrl || (dep && (dep.url || dep.staticUrl)) || "";
             return `<div class="svc-row" data-svc="${esc(svc.id)}">
               <div class="svc-info">
                 <b>${esc(svc.name)}</b>
-                <span>${esc(dep ? friendlyDeployStatus(dep.status) : "no deployment yet")}${url ? ` · <a href="${esc(url)}" target="_blank" rel="noopener">${esc(url)}</a>` : ""}</span>
+                <span>${esc(dep ? friendlyDeployStatus(dep.status) : url ? "live" : "no deployment yet")}${url ? ` · <a href="${esc(url)}" target="_blank" rel="noopener">Open app</a>` : ""}</span>
               </div>
               <div class="svc-actions">
                 <button class="btn btn-quiet btn-sm" data-act="logs" data-dep="${esc(dep?.id || "")}" data-name="${esc(svc.name)}">Logs</button>

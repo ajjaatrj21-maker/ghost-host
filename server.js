@@ -584,11 +584,6 @@ app.get(
   })
 );
 
-app.get("/api/open/project/:id", (req, res) => {
-  if (!/^[A-Za-z0-9-]{1,64}$/.test(req.params.id)) return res.status(400).end();
-  res.redirect(302, `https://railway.com/project/${req.params.id}`);
-});
-
 app.get(
   "/api/host/projects/:id/variables",
   ah(async (req, res) => {
@@ -655,6 +650,7 @@ app.get(
   "/api/host/projects/:id",
   ah(async (req, res) => {
     const project = await withAnyToken(req.query.tokenId, (secret) => rw.projectInfo(secret, req.params.id));
+    const envId = project.environments[0]?.id;
     const withDeployments = [];
     for (const service of project.services) {
       let latest = [];
@@ -663,20 +659,30 @@ app.get(
           rw.listDeployments(secret, {
             projectId: project.id,
             serviceId: service.id,
-            environmentId: project.environments[0]?.id,
+            environmentId: envId,
             first: 3,
           })
         );
       } catch {
         /* ignore per-service errors */
       }
-      withDeployments.push({ ...service, deployments: latest });
+      let publicUrl = latest[0]?.url || latest[0]?.staticUrl || "";
+      if (!publicUrl && envId) {
+        try {
+          const domain = await withAnyToken(req.query.tokenId, (secret) =>
+            rw.serviceDomains(secret, { projectId: project.id, environmentId: envId, serviceId: service.id })
+          );
+          if (domain) publicUrl = `https://${domain}`;
+        } catch {
+          /* ignore */
+        }
+      }
+      withDeployments.push({ ...service, deployments: latest, publicUrl });
     }
     res.json({
       project: {
         ...project,
         services: withDeployments,
-        dashboardUrl: `https://railway.com/project/${project.id}`,
       },
     });
   })
@@ -843,8 +849,22 @@ app.post("/api/jobs/:id/cancel", (req, res) => {
 app.delete(
   "/api/jobs/:id",
   ah(async (req, res) => {
+    const live = jobs.jobs.get(req.params.id);
+    const record = live ? jobs.publicJob(live) : await db.findDeployment(req.params.id);
+    if (!record) return res.status(404).json({ error: "Job not found" });
+    if (live) jobs.cancelJob(live);
+    let projectDeleted = false;
+    if (record.projectId) {
+      try {
+        await withAnyToken("", (secret) => rw.deleteProject(secret, record.projectId));
+        projectDeleted = true;
+      } catch (err) {
+        return res.status(502).json({ error: `Could not delete the app: ${err.message}` });
+      }
+    }
+    if (live) jobs.jobs.delete(req.params.id);
     await db.removeDeployment(req.params.id);
-    res.json({ ok: true });
+    res.json({ ok: true, projectDeleted });
   })
 );
 
