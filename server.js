@@ -677,7 +677,11 @@ app.get(
           /* ignore */
         }
       }
-      withDeployments.push({ ...service, deployments: latest, publicUrl });
+      withDeployments.push({
+        ...service,
+        deployments: latest,
+        publicUrl: publicUrl ? (/^https?:\/\//i.test(publicUrl) ? publicUrl : `https://${publicUrl}`) : "",
+      });
     }
     res.json({
       project: {
