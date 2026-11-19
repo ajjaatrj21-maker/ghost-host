@@ -971,6 +971,83 @@ app.get(
   })
 );
 
+/* Rebuild deployment rows from the cloud projects that still exist, so the
+   Deployments tab never looks empty after the local cache is wiped. */
+app.post(
+  "/api/host/sync-deployments",
+  ah(async (req, res) => {
+    const tokens = (await db.listTokens()).filter((t) => t.active && t.status !== "error");
+    const existing = await db.listDeployments();
+    const known = new Set(existing.map((d) => d.projectId).filter(Boolean));
+    let created = 0;
+    for (const token of tokens) {
+      const secret = await db.getTokenSecret(token.id);
+      if (!secret) continue;
+      let projects = [];
+      try {
+        projects = await rw.listProjects(secret);
+      } catch {
+        continue;
+      }
+      for (const project of projects) {
+        if (!project.id || known.has(project.id)) continue;
+        let url = "";
+        try {
+          const info = await rw.projectInfo(secret, project.id);
+          const envId = info.environments[0]?.id;
+          for (const svc of info.services || []) {
+            try {
+              const deps = await rw.listDeployments(secret, {
+                projectId: project.id,
+                serviceId: svc.id,
+                environmentId: envId,
+                first: 1,
+              });
+              url = deps[0]?.url || deps[0]?.staticUrl || "";
+            } catch {
+              /* keep looking */
+            }
+            if (!url && envId) {
+              try {
+                const domain = await rw.serviceDomains(secret, {
+                  projectId: project.id,
+                  environmentId: envId,
+                  serviceId: svc.id,
+                });
+                if (domain) url = `https://${domain}`;
+              } catch {
+                /* keep looking */
+              }
+            }
+            if (url) break;
+          }
+        } catch {
+          /* no services readable */
+        }
+        const publicUrl = url ? (/^https?:\/\//i.test(url) ? url : `https://${url}`) : "";
+        await db.addDeployment({
+          id: project.id,
+          projectId: project.id,
+          projectName: project.name,
+          name: project.name,
+          type: "import",
+          status: "success",
+          deploymentUrl: publicUrl,
+          tokenId: token.id,
+          tokenLabel: token.label,
+          via: "owner",
+          userName: "Owner",
+          createdAt: project.createdAt || new Date().toISOString(),
+          logs: [],
+        });
+        known.add(project.id);
+        created += 1;
+      }
+    }
+    res.json({ ok: true, created });
+  })
+);
+
 app.get(
   "/api/jobs/:id",
   ah(async (req, res) => {

@@ -1041,10 +1041,14 @@ async function userAction(key, action) {
 
 /* ---------------- owner: deployments ---------------- */
 
-async function loadJobs() {
+async function loadJobs(retry = true) {
   try {
     const data = await api("/api/jobs");
     state.owner.jobs = data.jobs;
+    if (retry && !data.jobs.length) {
+      const sync = await api("/api/host/sync-deployments", { method: "POST" });
+      if (sync.created) return loadJobs(false);
+    }
     renderJobs();
   } catch (err) {
     toast(err.message, true);
@@ -1081,7 +1085,7 @@ function renderJobs() {
         <td class="nowrap row-muted">${esc(timeAgo(job.createdAt))}</td>
         <td>
           <div class="actions">
-            <button class="btn btn-quiet btn-sm" data-job="${esc(job.id)}" data-act="logs">Logs</button>
+            ${job.type === "import" ? "" : `<button class="btn btn-quiet btn-sm" data-job="${esc(job.id)}" data-act="logs">Logs</button>`}
             ${job.deploymentUrl ? `<a class="btn btn-quiet btn-sm" href="${appHref(job.id)}" target="_blank" rel="noopener">Open</a>` : ""}
             ${
               ["queued", "running"].includes(job.status)
