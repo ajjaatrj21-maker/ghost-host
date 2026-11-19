@@ -699,6 +699,15 @@ app.get(
   })
 );
 
+app.get(
+  "/api/db/active-url",
+  ah(async (req, res) => {
+    const url = db.activeUrl();
+    if (!url) return res.status(404).json({ error: "No stored MongoDB URL." });
+    res.json({ ok: true, url });
+  })
+);
+
 app.post(
   "/api/db/urls",
   ah(async (req, res) => {

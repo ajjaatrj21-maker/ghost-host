@@ -1409,6 +1409,11 @@ async function loadDb() {
         : "No MongoDB configured — using the local JSON snapshot.";
     }
     renderDbUrls(data.urls);
+    if ((data.urls || []).length && !localStorage.getItem(DB_URL_KEY)) {
+      api("/api/db/active-url")
+        .then((row) => row?.url && localStorage.setItem(DB_URL_KEY, row.url))
+        .catch(() => {});
+    }
   } catch (err) {
     toast(err.message, true);
   }
@@ -1482,6 +1487,12 @@ async function dbAction(id, action) {
     } else if (action === "remove") {
       if (!confirm("Remove this MongoDB URL?")) return;
       await api(`/api/db/urls/${id}`, { method: "DELETE" });
+      try {
+        const st = await api("/api/db/status");
+        if (!(st.urls || []).length) localStorage.removeItem(DB_URL_KEY);
+      } catch {
+        /* ignore */
+      }
       loadDb();
     }
   } catch (err) {
