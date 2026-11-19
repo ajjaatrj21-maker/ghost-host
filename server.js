@@ -422,7 +422,7 @@ app.post(
     const secret = String(req.body?.token || "").trim();
     const label = String(req.body?.label || "").trim().slice(0, 40);
     if (secret.length < 20) {
-      return res.status(400).json({ error: "That does not look like a Railway token." });
+      return res.status(400).json({ error: "That does not look like a valid deploy token." });
     }
     let info;
     try {
@@ -431,7 +431,7 @@ app.post(
       return res.status(400).json({ error: err.message });
     }
     const id = await db.addToken({
-      label: label || info.email || "Railway token",
+      label: label || info.email || "Deploy token",
       secret,
       email: info.email,
       kind: info.kind,
@@ -532,7 +532,7 @@ app.get(
   "/api/railway/projects",
   ah(async (req, res) => {
     const tokens = (await db.listTokens()).filter((t) => t.active && t.status !== "error");
-    if (!tokens.length) return res.status(400).json({ error: "Add a Railway token to the pool first" });
+    if (!tokens.length) return res.status(400).json({ error: "Add a deploy token to the pool first" });
     const projects = [];
     const seen = new Set();
     let lastError = null;
@@ -554,11 +554,16 @@ app.get(
   })
 );
 
+app.get("/api/open/project/:id", (req, res) => {
+  if (!/^[A-Za-z0-9-]{1,64}$/.test(req.params.id)) return res.status(400).end();
+  res.redirect(302, `https://railway.com/project/${req.params.id}`);
+});
+
 app.get(
   "/api/railway/projects/:id",
   ah(async (req, res) => {
     const secret = await anyTokenSecret(req.query.tokenId);
-    if (!secret) return res.status(400).json({ error: "Add a Railway token to the pool first" });
+    if (!secret) return res.status(400).json({ error: "Add a deploy token to the pool first" });
     const project = await rw.projectInfo(secret, req.params.id);
     const withDeployments = [];
     for (const service of project.services) {
@@ -589,7 +594,7 @@ app.delete(
   "/api/railway/projects/:id",
   ah(async (req, res) => {
     const secret = await anyTokenSecret(req.query.tokenId);
-    if (!secret) return res.status(400).json({ error: "Add a Railway token to the pool first" });
+    if (!secret) return res.status(400).json({ error: "Add a deploy token to the pool first" });
     await rw.deleteProject(secret, req.params.id);
     res.json({ ok: true });
   })
@@ -791,7 +796,7 @@ async function main() {
   app.listen(config.PORT, "0.0.0.0", () => {
     const line = "─".repeat(52);
     console.log(`\n${line}`);
-    console.log("  👻 GHOST HOST  —  free Railway deploy panel");
+    console.log("  👻 GHOST HOST  —  free deploy panel");
     console.log(`  Local:   http://localhost:${config.PORT}`);
     console.log(`  Version: ${config.VERSION}`);
     console.log(`  Storage: ${status.mode === "mongo" ? "MongoDB" : "local JSON (fallback)"}`);

@@ -3,8 +3,8 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <title>GHOST HOST — Free Railway deployments</title>
-    <meta name="description" content="Drop a ZIP or connect a GitHub repo. GHOST HOST builds and runs it on Railway 24/7 — free, no token, no signup." />
+    <title>GHOST HOST — Free 24/7 deployments</title>
+    <meta name="description" content="Drop a ZIP or connect a GitHub repo. GHOST HOST builds and runs it 24/7 — free, no token, no signup." />
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath d='M32 6c12 0 20 9 20 22v22l-7-5-6 5-7-5-7 5-6-5-7 5V28C12 15 20 6 32 6z' fill='%230a0c11' stroke='%235b8cff' stroke-width='3'/%3E%3Ccircle cx='25' cy='29' r='3.4' fill='%2337e8b0'/%3E%3Ccircle cx='39' cy='29' r='3.4' fill='%2337e8b0'/%3E%3C/svg%3E" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -33,7 +33,7 @@
           <a href="#how">How it works</a>
         </nav>
         <div class="top-actions">
-          <span class="pool-pill" id="pool-pill" title="Free deployment slots on the shared Railway pool">
+          <span class="pool-pill" id="pool-pill" title="Free deployment slots on the shared pool">
             <i></i><b id="pool-free">–</b><span>slots free</span>
           </span>
           <button class="btn btn-quiet" id="btn-console" type="button" aria-label="Owner console">
@@ -46,11 +46,11 @@
       <main id="top">
         <section class="hero">
           <div class="hero-copy">
-            <span class="eyebrow"><i></i>Shared Railway deploy pool · live 24/7</span>
-            <h1>Ship your app to Railway.<br /><span class="grad">No token needed.</span></h1>
+            <span class="eyebrow"><i></i>Shared deploy pool · live 24/7</span>
+            <h1>Ship your app in seconds.<br /><span class="grad">No token needed.</span></h1>
             <p class="lede">
               Drop a ZIP or paste a GitHub repo. GHOST HOST builds it, starts it and keeps it running on
-              our Railway pool. You never touch an API token, never make an account.
+              our shared pool. You never touch an API token, never make an account.
             </p>
             <div class="hero-actions">
               <a class="btn btn-primary" href="#deploy">Deploy my app</a>
@@ -112,13 +112,13 @@
             <label class="field">
               <span>Project name</span>
               <input id="deploy-project" placeholder="my-app" spellcheck="false" maxlength="60" />
-              <small>Letters, numbers, dashes. This becomes the Railway project name.</small>
+              <small>Letters, numbers, dashes. This becomes your project name.</small>
             </label>
 
             <p class="form-error" id="deploy-error" role="alert"></p>
             <button class="btn btn-primary btn-block" id="btn-deploy" type="button">
               <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 3v10m0-10L5.5 7.5M10 3l4.5 4.5M4 14v2a1.5 1.5 0 001.5 1.5h9A1.5 1.5 0 0016 16v-2" /></svg>
-              Deploy to Railway
+              Deploy now
             </button>
             <p class="fineprint" id="deploy-limit"></p>
           </div>
@@ -191,7 +191,7 @@
             <article class="step">
               <span class="step-n">02</span>
               <h3>We pick a slot</h3>
-              <p>A Railway token from the shared pool is assigned to your build. You never enter or see one.</p>
+              <p>A deploy token from the shared pool is assigned to your build. You never enter or see one.</p>
             </article>
             <article class="step">
               <span class="step-n">03</span>
@@ -217,7 +217,7 @@
           </svg>
           <span class="brand-name">GHOST<span>HOST</span></span>
         </div>
-        <p>Built on the Railway API. <span id="footer-ver"></span></p>
+        <p>Powered by GHOST HOST. <span id="footer-ver"></span></p>
       </footer>
     </div>
 
@@ -244,7 +244,7 @@
           <button class="ctab" data-tab="tokens" type="button">Token pool</button>
           <button class="ctab" data-tab="users" type="button">Users</button>
           <button class="ctab" data-tab="deployments" type="button">Deployments</button>
-          <button class="ctab" data-tab="projects" type="button">Railway projects</button>
+          <button class="ctab" data-tab="projects" type="button">Projects</button>
           <button class="ctab" data-tab="database" type="button">Database</button>
           <div class="cside-foot">
             <span id="c-version"></span>
@@ -333,19 +333,19 @@
           <!-- Tokens -->
           <section class="panel" data-panel="tokens">
             <div class="panel-head">
-              <div><h1>Token pool</h1><p>Railway tokens that power every public deployment. More tokens = more parallel slots.</p></div>
+              <div><h1>Token pool</h1><p>Deploy tokens that power every public deployment. More tokens = more parallel slots.</p></div>
             </div>
             <div class="pool-chips" id="pool-chips"></div>
             <div class="split wide-left">
               <div class="card">
                 <div class="card-head"><h2>Add token</h2><span class="chip">encrypted at rest</span></div>
                 <form id="form-add-token">
-                  <label class="field"><span>Railway token</span><input id="tok-secret" type="password" placeholder="paste the token" autocomplete="off" /><small>Account token (No workspace) or Workspace token from railway.com/account/tokens. Project tokens can't create new projects.</small></label>
+                  <label class="field"><span>Deploy token</span><input id="tok-secret" type="password" placeholder="paste the token" autocomplete="off" /><small>Account token (no workspace selected) or Workspace token from your provider dashboard. Project tokens can't create new projects.</small></label>
                   <div class="field-row">
                     <label class="field"><span>Label</span><input id="tok-label" maxlength="40" placeholder="Main account" /></label>
                     <label class="field"><span>Priority</span><input id="tok-prio" type="number" min="0" max="99" value="0" /></label>
                   </div>
-                  <label class="field"><span>Parallel slots</span><input id="tok-cap" type="number" min="1" max="50" value="1" /><small>One Railway account usually handles 1–2 deployments at a time.</small></label>
+                  <label class="field"><span>Parallel slots</span><input id="tok-cap" type="number" min="1" max="50" value="1" /><small>One account usually handles 1–2 deployments at a time.</small></label>
                   <p class="form-error" id="tok-error" role="alert"></p>
                   <button class="btn btn-primary btn-block" type="submit">Verify &amp; add to pool</button>
                 </form>
@@ -406,7 +406,7 @@
           <!-- Projects -->
           <section class="panel" data-panel="projects">
             <div class="panel-head">
-              <div><h1>Railway projects</h1><p>Live view of what exists on the connected Railway account.</p></div>
+              <div><h1>Projects</h1><p>Live view of what exists on the connected hosting account.</p></div>
               <button class="btn btn-primary btn-sm" id="btn-load-projects" type="button">Load projects</button>
             </div>
             <div id="project-list" class="project-list"></div>

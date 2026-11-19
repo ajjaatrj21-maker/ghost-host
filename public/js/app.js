@@ -371,7 +371,7 @@ async function startPublicDeploy() {
   } finally {
     delete button.dataset.busy;
     button.disabled = false;
-    button.textContent = "Deploy to Railway";
+    button.textContent = "Deploy now";
   }
 }
 
@@ -836,7 +836,7 @@ async function addToken(event) {
   error.textContent = "";
   const token = $("#tok-secret").value.trim();
   if (token.length < 20) {
-    error.textContent = "Paste a full Railway token.";
+    error.textContent = "Paste a full deploy token.";
     return;
   }
   const button = $("#form-add-token button[type=submit]");
@@ -1175,7 +1175,7 @@ async function loadProjects() {
     if (!data.projects.length) {
       list.innerHTML = "";
       empty.hidden = false;
-      empty.textContent = "This Railway account has no projects yet.";
+      empty.textContent = "This account has no projects yet.";
       return;
     }
     empty.hidden = true;
@@ -1186,7 +1186,7 @@ async function loadProjects() {
           <h3>${esc(project.name)}</h3>
           <p class="pmeta">${esc([project.workspace, project.tokenLabel].filter(Boolean).join(" · "))}${project.workspace || project.tokenLabel ? " · " : ""}${esc(project.id)}</p>
           <div class="prow">
-            <a href="https://railway.com/project/${esc(project.id)}" target="_blank" rel="noopener">Open in Railway ↗</a>
+            <a href="/api/open/project/${esc(project.id)}" target="_blank" rel="noopener">Open ↗</a>
             <button class="btn btn-danger btn-sm" data-project="${esc(project.id)}">Delete</button>
           </div>
         </article>`
@@ -1194,7 +1194,7 @@ async function loadProjects() {
       .join("");
     $$("#project-list [data-project]").forEach((btn) =>
       btn.addEventListener("click", async () => {
-        if (!confirm("Delete this Railway project? This removes its services too.")) return;
+        if (!confirm("Delete this project? This removes its services too.")) return;
         try {
           await api(`/api/railway/projects/${btn.dataset.project}`, { method: "DELETE" });
           toast("Project deleted.");
