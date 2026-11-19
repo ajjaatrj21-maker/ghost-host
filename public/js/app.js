@@ -350,6 +350,7 @@ async function startPublicDeploy() {
       form.append("file", state.file);
       form.append("projectName", projectName);
       form.append("username", name);
+      form.append("env", $("#deploy-env").value);
       data = await api("/api/public/deploy/zip", { method: "POST", form });
     } else {
       data = await api("/api/public/deploy/github", {
@@ -359,6 +360,7 @@ async function startPublicDeploy() {
           username: name,
           repo: $("#gh-repo").value.trim(),
           branch: $("#gh-branch").value.trim(),
+          env: $("#deploy-env").value,
         },
       });
     }
@@ -582,6 +584,9 @@ function wireConsole() {
     closeLogStream();
     $("#log-modal").close();
   });
+  $("#vars-close").addEventListener("click", () => $("#vars-modal").close());
+  $("#vars-cancel").addEventListener("click", () => $("#vars-modal").close());
+  $("#vars-save").addEventListener("click", saveVars);
 }
 
 async function startOwnerDeploy(event) {
@@ -610,6 +615,7 @@ async function startOwnerDeploy(event) {
       const form = new FormData();
       form.append("file", state.owner.file);
       form.append("projectName", projectName);
+      form.append("env", $("#c-deploy-env").value);
       data = await api("/api/deploy/zip", { method: "POST", form });
     } else {
       data = await api("/api/deploy/github", {
@@ -618,6 +624,7 @@ async function startOwnerDeploy(event) {
           projectName,
           repo: $("#c-gh-repo").value.trim(),
           branch: $("#c-gh-branch").value.trim(),
+          env: $("#c-deploy-env").value,
         },
       });
     }
@@ -796,13 +803,19 @@ function renderTokens() {
   empty.hidden = true;
   list.innerHTML = tokens
     .map((token) => {
-      const stateClass = token.status === "error" ? "error" : token.active === false ? "off" : "";
-      const stateText = token.status === "error" ? "error" : token.active === false ? "disabled" : "ready";
+      const restricted = token.status === "error";
+      const off = token.active === false;
+      const stateClass = restricted ? "error" : off ? "off" : "";
+      const stateText = restricted ? "Restricted / invalid" : off ? "Disabled" : token.lastCheck ? "Alive · valid" : "Not checked";
+      const metaBits = [];
+      if (token.lastError) metaBits.push(token.lastError);
+      else if (token.note) metaBits.push(token.note);
+      if (token.lastCheck) metaBits.push(`last check ${timeAgo(token.lastCheck)}`);
       return `
       <div class="token-row" data-id="${esc(token.id)}">
         <div class="token-name">
           <b>${esc(token.label)}</b>
-          <span>${esc(token.masked)}${token.email ? ` · ${esc(token.email)}` : ""} · ${token.total} deploys</span>
+          <span>${esc(token.masked)}${token.email ? ` · ${esc(token.email)}` : ""} · ${token.total} deploys${metaBits.length ? `<br/><span class="tok-meta">${esc(metaBits.join(" · "))}</span>` : ""}</span>
         </div>
         <div class="token-state ${stateClass}"><i></i>${stateText}</div>
         <div class="token-usage">${token.current}/${token.maxDeployments}</div>
@@ -1182,31 +1195,176 @@ async function loadProjects() {
     list.innerHTML = data.projects
       .map(
         (project) => `
-        <article class="project-card">
+        <article class="project-card" data-pid="${esc(project.id)}">
           <h3>${esc(project.name)}</h3>
           <p class="pmeta">${esc([project.workspace, project.tokenLabel].filter(Boolean).join(" · "))}${project.workspace || project.tokenLabel ? " · " : ""}${esc(project.id)}</p>
           <div class="prow">
+            <button class="btn btn-quiet btn-sm" data-manage>Manage</button>
             <a href="/api/open/project/${esc(project.id)}" target="_blank" rel="noopener">Open ↗</a>
-            <button class="btn btn-danger btn-sm" data-project="${esc(project.id)}">Delete</button>
+            <button class="btn btn-danger btn-sm" data-del>Delete</button>
           </div>
+          <div class="svc-list" hidden></div>
         </article>`
       )
       .join("");
-    $$("#project-list [data-project]").forEach((btn) =>
-      btn.addEventListener("click", async () => {
+    $$("#project-list .project-card").forEach((card) => {
+      const id = card.dataset.pid;
+      card.querySelector("[data-manage]").addEventListener("click", () => toggleProjectDetail(card));
+      card.querySelector("[data-del]").addEventListener("click", async () => {
         if (!confirm("Delete this project? This removes its services too.")) return;
         try {
-          await api(`/api/host/projects/${btn.dataset.project}`, { method: "DELETE" });
+          await api(`/api/host/projects/${id}`, { method: "DELETE" });
           toast("Project deleted.");
           loadProjects();
         } catch (err) {
           toast(err.message, true);
         }
-      })
-    );
+      });
+    });
   } catch (err) {
     empty.hidden = false;
     empty.textContent = err.message;
+  }
+}
+
+async function toggleProjectDetail(card) {
+  const slot = card.querySelector(".svc-list");
+  const id = card.dataset.pid;
+  if (!slot.hidden) {
+    slot.hidden = true;
+    return;
+  }
+  slot.hidden = false;
+  slot.innerHTML = `<p class="empty">Loading services…</p>`;
+  try {
+    const data = await api(`/api/host/projects/${id}`);
+    const project = data.project;
+    const env = (project.environments || [])[0] || {};
+    const services = project.services || [];
+    slot.innerHTML = services.length
+      ? services
+          .map((svc) => {
+            const dep = (svc.deployments || [])[0];
+            const url = dep && (dep.url || dep.staticUrl);
+            return `<div class="svc-row" data-svc="${esc(svc.id)}">
+              <div class="svc-info">
+                <b>${esc(svc.name)}</b>
+                <span>${esc(dep ? friendlyDeployStatus(dep.status) : "no deployment yet")}${url ? ` · <a href="${esc(url)}" target="_blank" rel="noopener">${esc(url)}</a>` : ""}</span>
+              </div>
+              <div class="svc-actions">
+                <button class="btn btn-quiet btn-sm" data-act="logs" data-dep="${esc(dep?.id || "")}" data-name="${esc(svc.name)}">Logs</button>
+                <button class="btn btn-quiet btn-sm" data-act="vars" data-name="${esc(svc.name)}">Variables</button>
+              </div>
+            </div>`;
+          })
+          .join("")
+      : `<p class="empty">No services in this project.</p>`;
+    slot.querySelectorAll("[data-act]").forEach((btn) =>
+      btn.addEventListener("click", () => {
+        const svcId = btn.closest("[data-svc]").dataset.svc;
+        if (btn.dataset.act === "logs") {
+          if (!btn.dataset.dep) return toast("This service has no deployment yet.", true);
+          openDeploymentLogs(btn.dataset.dep, btn.dataset.name);
+        } else {
+          openVariables(id, svcId, env.id, project.name, btn.dataset.name);
+        }
+      })
+    );
+  } catch (err) {
+    slot.innerHTML = `<p class="empty">${esc(err.message)}</p>`;
+  }
+}
+
+function friendlyDeployStatus(status) {
+  const map = {
+    SUCCESS: "live",
+    BUILDING: "building",
+    DEPLOYING: "starting",
+    QUEUED: "queued",
+    WAITING: "waiting",
+    FAILED: "build failed",
+    CRASHED: "crashed",
+    SLEEPING: "sleeping",
+    REMOVED: "removed",
+    INITIALIZING: "initializing",
+  };
+  return map[String(status || "").toUpperCase()] || String(status || "unknown").toLowerCase();
+}
+
+async function openDeploymentLogs(deploymentId, serviceName) {
+  const modal = $("#log-modal");
+  const body = $("#log-body");
+  closeLogStream();
+  body.innerHTML = "";
+  $("#log-title").textContent = `${serviceName} · runtime logs`;
+  $("#log-sub").textContent = "loading…";
+  modal.showModal();
+  try {
+    const data = await api(`/api/host/deployments/${deploymentId}/logs`);
+    const logs = data.logs || [];
+    $("#log-sub").textContent = `${logs.length} lines · ${serviceName}`;
+    logs.forEach((line) => termLine(body, line));
+    if (!logs.length) termNote(body, "No log lines yet — the app may still be building or haven't printed anything.");
+    body.scrollTop = body.scrollHeight;
+  } catch (err) {
+    termNote(body, err.message);
+  }
+}
+
+let varsCtx = null;
+
+async function openVariables(projectId, serviceId, environmentId, projectName, serviceName) {
+  const modal = $("#vars-modal");
+  varsCtx = { projectId, serviceId, environmentId };
+  $("#vars-title").textContent = `Variables · ${serviceName || projectName}`;
+  $("#vars-sub").textContent = `${projectName} — shared across the service`;
+  $("#vars-error").textContent = "";
+  $("#vars-text").value = "";
+  $("#vars-service").innerHTML = `<option>${esc(serviceName || "service")}</option>`;
+  $("#vars-service").disabled = true;
+  modal.showModal();
+  try {
+    const data = await api(`/api/host/projects/${projectId}/variables?serviceId=${encodeURIComponent(serviceId)}`);
+    varsCtx.environmentId = data.environmentId || environmentId;
+    $("#vars-text").value = Object.entries(data.variables || {})
+      .map(([key, value]) => `${key}=${value}`)
+      .join("\n");
+  } catch (err) {
+    $("#vars-error").textContent = err.message;
+  }
+}
+
+async function saveVars() {
+  if (!varsCtx) return;
+  const error = $("#vars-error");
+  error.textContent = "";
+  const button = $("#vars-save");
+  button.disabled = true;
+  button.textContent = "Saving…";
+  try {
+    const variables = {};
+    for (const raw of $("#vars-text").value.split(/\r?\n/)) {
+      const line = raw.trim();
+      if (!line || line.startsWith("#")) continue;
+      const eq = line.indexOf("=");
+      if (eq < 1) continue;
+      const key = line.slice(0, eq).trim();
+      if (!/^[A-Za-z_][A-Za-z0-9_]{0,63}$/.test(key)) {
+        throw new Error(`Invalid variable name: ${key}`);
+      }
+      variables[key] = line.slice(eq + 1).trim();
+    }
+    const data = await api(`/api/host/projects/${varsCtx.projectId}/variables`, {
+      method: "POST",
+      body: { serviceId: varsCtx.serviceId, environmentId: varsCtx.environmentId, variables },
+    });
+    toast(`${data.count} variable(s) saved — redeploying service.`);
+    $("#vars-modal").close();
+  } catch (err) {
+    error.textContent = err.message;
+  } finally {
+    button.disabled = false;
+    button.textContent = "Save & redeploy";
   }
 }
 

@@ -283,6 +283,7 @@ app.post(
         name: projectName,
         projectName,
         zipPath: req.file.path,
+        envVars: parseEnv(req.body?.env),
         via: "public",
         userKey: req.visitor,
         userName: user.name,
@@ -312,6 +313,7 @@ app.post(
       projectName,
       repo,
       branch,
+      envVars: parseEnv(req.body?.env),
       via: "public",
       userKey: req.visitor,
       userName: user.name,
@@ -560,6 +562,58 @@ app.get("/api/open/project/:id", (req, res) => {
 });
 
 app.get(
+  "/api/host/projects/:id/variables",
+  ah(async (req, res) => {
+    const secret = await anyTokenSecret(req.query.tokenId);
+    if (!secret) return res.status(400).json({ error: "Add a deploy token to the pool first" });
+    const info = await rw.projectInfo(secret, req.params.id);
+    const envId = String(req.query.environmentId || "") || info.environments[0]?.id;
+    if (!envId) return res.status(400).json({ error: "No environment on this project." });
+    const variables = await rw.getVariables(secret, {
+      projectId: req.params.id,
+      environmentId: envId,
+      serviceId: String(req.query.serviceId || "") || undefined,
+    });
+    res.json({ ok: true, environmentId: envId, variables });
+  })
+);
+
+app.post(
+  "/api/host/projects/:id/variables",
+  ah(async (req, res) => {
+    const secret = await anyTokenSecret(req.body?.tokenId);
+    if (!secret) return res.status(400).json({ error: "Add a deploy token to the pool first" });
+    const variables = {};
+    for (const [key, value] of Object.entries(req.body?.variables || {})) {
+      if (!/^[A-Za-z_][A-Za-z0-9_]{0,63}$/.test(key)) continue;
+      variables[key] = String(value ?? "").slice(0, 4000);
+    }
+    const info = await rw.projectInfo(secret, req.params.id);
+    const envId = String(req.body?.environmentId || "") || info.environments[0]?.id;
+    if (!envId) return res.status(400).json({ error: "No environment on this project." });
+    await rw.upsertVariables(secret, {
+      projectId: req.params.id,
+      environmentId: envId,
+      serviceId: String(req.body?.serviceId || "") || undefined,
+      variables,
+      skipDeploys: false,
+    });
+    res.json({ ok: true, count: Object.keys(variables).length });
+  })
+);
+
+app.get(
+  "/api/host/deployments/:id/logs",
+  ah(async (req, res) => {
+    const secret = await anyTokenSecret(req.query.tokenId);
+    if (!secret) return res.status(400).json({ error: "Add a deploy token to the pool first" });
+    const limit = Math.min(500, Number(req.query.limit) || 250);
+    const logs = await rw.deploymentLogs(secret, req.params.id, limit);
+    res.json({ ok: true, logs });
+  })
+);
+
+app.get(
   "/api/host/projects/:id",
   ah(async (req, res) => {
     const secret = await anyTokenSecret(req.query.tokenId);
@@ -664,6 +718,7 @@ app.post(
         projectName,
         preferredTokenId: String(req.body?.tokenId || ""),
         zipPath: req.file.path,
+        envVars: parseEnv(req.body?.env),
         via: "owner",
         userName: "Owner",
       });
@@ -693,6 +748,7 @@ app.post(
       repo,
       branch,
       preferredTokenId: String(req.body?.tokenId || ""),
+      envVars: parseEnv(req.body?.env),
       via: "owner",
       userName: "Owner",
     });
@@ -746,6 +802,27 @@ app.delete(
     res.json({ ok: true });
   })
 );
+
+function parseEnv(text) {
+  const out = {};
+  const lines = String(text || "").split(/\r?\n/);
+  let count = 0;
+  for (const raw of lines) {
+    const line = raw.trim();
+    if (!line || line.startsWith("#")) continue;
+    const eq = line.indexOf("=");
+    if (eq < 1) continue;
+    const key = line.slice(0, eq).trim();
+    let value = line.slice(eq + 1).trim();
+    if (value.length >= 2 && ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'")))) {
+      value = value.slice(1, -1);
+    }
+    if (!/^[A-Za-z_][A-Za-z0-9_]{0,63}$/.test(key)) continue;
+    out[key] = value.slice(0, 4000);
+    if (++count >= 100) break;
+  }
+  return out;
+}
 
 function normalizeName(value) {
   const name = String(value || "")
