@@ -529,7 +529,7 @@ async function anyTokenSecret(explicitId) {
 }
 
 app.get(
-  "/api/railway/projects",
+  "/api/host/projects",
   ah(async (req, res) => {
     const tokens = (await db.listTokens()).filter((t) => t.active && t.status !== "error");
     if (!tokens.length) return res.status(400).json({ error: "Add a deploy token to the pool first" });
@@ -560,7 +560,7 @@ app.get("/api/open/project/:id", (req, res) => {
 });
 
 app.get(
-  "/api/railway/projects/:id",
+  "/api/host/projects/:id",
   ah(async (req, res) => {
     const secret = await anyTokenSecret(req.query.tokenId);
     if (!secret) return res.status(400).json({ error: "Add a deploy token to the pool first" });
@@ -591,7 +591,7 @@ app.get(
 );
 
 app.delete(
-  "/api/railway/projects/:id",
+  "/api/host/projects/:id",
   ah(async (req, res) => {
     const secret = await anyTokenSecret(req.query.tokenId);
     if (!secret) return res.status(400).json({ error: "Add a deploy token to the pool first" });

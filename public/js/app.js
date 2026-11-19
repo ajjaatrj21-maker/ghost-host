@@ -1170,7 +1170,7 @@ async function loadProjects() {
   const list = $("#project-list");
   const empty = $("#projects-empty");
   try {
-    const data = await api("/api/railway/projects");
+    const data = await api("/api/host/projects");
     state.owner.projects = data.projects;
     if (!data.projects.length) {
       list.innerHTML = "";
@@ -1196,7 +1196,7 @@ async function loadProjects() {
       btn.addEventListener("click", async () => {
         if (!confirm("Delete this project? This removes its services too.")) return;
         try {
-          await api(`/api/railway/projects/${btn.dataset.project}`, { method: "DELETE" });
+          await api(`/api/host/projects/${btn.dataset.project}`, { method: "DELETE" });
           toast("Project deleted.");
           loadProjects();
         } catch (err) {
