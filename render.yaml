@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: ghosthost
+    runtime: node
+    plan: free
+    region: singapore
+    buildCommand: npm ci --omit=dev || npm install --omit=dev
+    startCommand: node server.js
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: APP_SECRET
+        sync: false
+      - key: MONGODB_URL
+        sync: false
+      - key: MAX_RUNNING
+        value: "2"
+      - key: PUBLIC_DEPLOYS_PER_HOUR
+        value: "8"
+      - key: DEPLOY_TIMEOUT_MIN
+        value: "25"

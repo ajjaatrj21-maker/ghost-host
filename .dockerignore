@@ -1,0 +1,9 @@
+node_modules
+data
+uploads
+work
+logs
+.git
+.env
+*.zip
+README.md
