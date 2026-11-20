@@ -91,6 +91,10 @@
                 <span>or click to browse · up to <b id="zip-limit">1024</b> MB</span>
                 <input id="file" type="file" accept=".zip,application/zip" hidden />
               </div>
+              <button class="drop-alt" type="button" id="pick-folder">
+                No ZIP handy? Pick a whole folder — we'll zip it for you
+              </button>
+              <input id="folder" type="file" webkitdirectory multiple hidden />
               <div class="file-row" id="file-meta" hidden>
                 <span class="file-ico">ZIP</span>
                 <div class="file-info"><b id="file-name">—</b><span id="file-size"></span></div>
@@ -489,7 +493,8 @@
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-    <script type="module" src="/js/scene.js"></script>
+    <script type="module" async src="/js/scene.js"></script>
+    <script src="/js/vendor/fflate.js" defer></script>
     <script src="/js/app.js" defer></script>
   </body>
 </html>

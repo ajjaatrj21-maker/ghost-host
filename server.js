@@ -4,6 +4,7 @@ const path = require("path");
 const fs = require("fs");
 const { Readable } = require("stream");
 const multer = require("multer");
+const { probeZip } = require("./lib/zip");
 const config = require("./lib/config");
 const db = require("./lib/db");
 const rw = require("./lib/railway");
@@ -421,6 +422,11 @@ app.post(
       }
       await publicGate(req);
       const user = await registerVisitor(req, req.body?.username);
+      try {
+        await probeZip(req.file.path);
+      } catch (zipErr) {
+        return res.status(400).json({ error: zipErr.message });
+      }
 
       const job = jobs.createJob({
         type: "zip",
@@ -911,6 +917,11 @@ app.post(
       }
       const pool = await db.poolStatus();
       if (!pool.free) return res.status(503).json({ error: "Every token slot is busy right now." });
+      try {
+        await probeZip(req.file.path);
+      } catch (zipErr) {
+        return res.status(400).json({ error: zipErr.message });
+      }
 
       const job = jobs.createJob({
         type: "zip",

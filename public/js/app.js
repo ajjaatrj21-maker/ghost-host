@@ -97,7 +97,12 @@ async function api(path, { method = "GET", body, form } = {}) {
     options.headers["Content-Type"] = "application/json";
     options.body = JSON.stringify(body);
   }
-  const res = await fetch(path, options);
+  let res;
+  try {
+    res = await fetch(path, options);
+  } catch {
+    throw new Error("Can't reach the server. Check your internet connection and try again.");
+  }
   let data = null;
   try {
     data = await res.json();
@@ -111,6 +116,96 @@ async function api(path, { method = "GET", body, form } = {}) {
     throw err;
   }
   return data;
+}
+
+function uploadForm(path, form, onProgress) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", path);
+    xhr.upload.onprogress = (event) => {
+      if (onProgress && event.lengthComputable) onProgress(event.loaded, event.total);
+    };
+    xhr.onload = () => {
+      let data = null;
+      try {
+        data = JSON.parse(xhr.responseText);
+      } catch {
+        data = null;
+      }
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve(data);
+        return;
+      }
+      if (xhr.status === 401) handleUnauthorized();
+      reject(new Error(data?.error || `Upload failed (${xhr.status})`));
+    };
+    xhr.onerror = () => reject(new Error("Upload failed — the connection dropped. Check your internet and try again."));
+    xhr.ontimeout = () => reject(new Error("Upload timed out. Try again."));
+    xhr.send(form);
+  });
+}
+
+const FOLDER_ZIP_LIMIT = 400 * 1024 * 1024;
+
+function readDirEntries(reader) {
+  return new Promise((resolve, reject) => reader.readEntries(resolve, reject));
+}
+
+async function collectFolderFiles(entry, prefix, bucket) {
+  if (entry.isFile) {
+    const file = await new Promise((resolve, reject) => entry.file(resolve, reject));
+    bucket.bytes += file.size;
+    if (bucket.bytes > FOLDER_ZIP_LIMIT) {
+      throw new Error("That folder is over 400 MB. Please zip it yourself and upload the .zip instead.");
+    }
+    bucket.files[prefix + entry.name] = new Uint8Array(await file.arrayBuffer());
+    return;
+  }
+  if (!entry.isDirectory || entry.name === ".git" || entry.name === "node_modules") return;
+  const reader = entry.createReader();
+  for (;;) {
+    const batch = await readDirEntries(reader);
+    if (!batch.length) break;
+    for (const child of batch) await collectFolderFiles(child, prefix + entry.name + "/", bucket);
+  }
+}
+
+function zipBucket(bucket, zipName) {
+  if (!window.fflate) throw new Error("The zip helper did not load. Refresh the page and try again.");
+  const names = Object.keys(bucket.files);
+  if (!names.length) throw new Error("That folder has no files inside. Pick your project folder instead.");
+  return new Promise((resolve, reject) => {
+    window.fflate.zip(bucket.files, { level: 6 }, (err, data) => {
+      if (err) {
+        reject(new Error("Could not zip that folder. Try zipping it yourself and upload the .zip."));
+        return;
+      }
+      resolve(new File([data], zipName.endsWith(".zip") ? zipName : `${zipName}.zip`, { type: "application/zip" }));
+    });
+  });
+}
+
+async function zipFolderEntry(entry, onStatus) {
+  onStatus?.(`Zipping folder “${entry.name}”…`);
+  const bucket = { files: {}, bytes: 0 };
+  await collectFolderFiles(entry, "", bucket);
+  onStatus?.(`Packing ${Object.keys(bucket.files).length} files…`);
+  return zipBucket(bucket, entry.name);
+}
+
+async function zipFolderInput(fileList) {
+  const bucket = { files: {}, bytes: 0 };
+  const files = [...fileList].filter((f) => f.size || f.name);
+  if (!files.length) throw new Error("That folder has no files inside.");
+  const root = (files[0].webkitRelativePath || "").split("/")[0] || `upload-${Date.now()}`;
+  for (const file of files) {
+    bucket.bytes += file.size;
+    if (bucket.bytes > FOLDER_ZIP_LIMIT) {
+      throw new Error("That folder is over 400 MB. Please zip it yourself and upload the .zip instead.");
+    }
+    bucket.files[file.webkitRelativePath || file.name] = new Uint8Array(await file.arrayBuffer());
+  }
+  return zipBucket(bucket, root);
 }
 
 function handleUnauthorized() {
@@ -261,7 +356,18 @@ function bindDropzone({ zone, input, onPick, onClear }) {
       dz.classList.remove("is-over");
     })
   );
-  dz.addEventListener("drop", (event) => {
+  dz.addEventListener("drop", async (event) => {
+    const items = event.dataTransfer?.items ? [...event.dataTransfer.items] : [];
+    const entries = items.map((item) => (item.webkitGetAsEntry ? item.webkitGetAsEntry() : null)).filter(Boolean);
+    const folder = entries.find((entry) => entry.isDirectory);
+    if (folder) {
+      try {
+        onPick(await zipFolderEntry(folder, (text) => toast(text)));
+      } catch (err) {
+        toast(err.message, true);
+      }
+      return;
+    }
     const file = event.dataTransfer?.files?.[0];
     if (file) onPick(file);
   });
@@ -292,6 +398,24 @@ function wirePublic() {
   $("#file-remove").addEventListener("click", () => {
     setPublicFile(null);
     $("#file").value = "";
+    $("#folder").value = "";
+  });
+  $("#pick-folder").addEventListener("click", () => $("#folder").click());
+  $("#folder").addEventListener("change", async () => {
+    const errorEl = $("#deploy-error");
+    errorEl.textContent = "";
+    const files = $("#folder").files;
+    if (!files?.length) return;
+    try {
+      toast("Zipping your folder…");
+      setPublicFile(await zipFolderInput(files));
+      toast("Folder zipped — ready to deploy.");
+    } catch (err) {
+      errorEl.textContent = err.message;
+      toast(err.message, true);
+    } finally {
+      $("#folder").value = "";
+    }
   });
 
   $("#gh-repo").addEventListener("input", () => {
@@ -353,7 +477,9 @@ async function startPublicDeploy() {
       form.append("projectName", projectName);
       form.append("username", name);
       form.append("env", $("#deploy-env").value);
-      data = await api("/api/public/deploy/zip", { method: "POST", form });
+      data = await uploadForm("/api/public/deploy/zip", form, (loaded, total) => {
+        button.textContent = `Uploading… ${Math.min(99, Math.round((loaded / total) * 100))}%`;
+      });
     } else {
       data = await api("/api/public/deploy/github", {
         method: "POST",
@@ -609,6 +735,7 @@ async function startOwnerDeploy(event) {
     return;
   }
   const button = $("#form-owner-deploy button[type=submit]");
+  const buttonLabel = button.textContent;
   button.disabled = true;
 
   try {
@@ -618,7 +745,9 @@ async function startOwnerDeploy(event) {
       form.append("file", state.owner.file);
       form.append("projectName", projectName);
       form.append("env", $("#c-deploy-env").value);
-      data = await api("/api/deploy/zip", { method: "POST", form });
+      data = await uploadForm("/api/deploy/zip", form, (loaded, total) => {
+        button.textContent = `Uploading… ${Math.min(99, Math.round((loaded / total) * 100))}%`;
+      });
     } else {
       data = await api("/api/deploy/github", {
         method: "POST",
@@ -638,6 +767,7 @@ async function startOwnerDeploy(event) {
     error.textContent = err.message;
   } finally {
     button.disabled = false;
+    button.textContent = buttonLabel;
   }
 }
 

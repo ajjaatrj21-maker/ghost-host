@@ -1598,3 +1598,26 @@ h1, h2, .brand-name, .section-head h2, .panel-head h1, .card-head h2, .step h3, 
   }
 }
 
+
+/* drop-alt: folder picker under the zip dropzone */
+.drop-alt {
+  display: block;
+  width: 100%;
+  margin-top: 10px;
+  padding: 10px 14px;
+  border: 1px dashed var(--line-2);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  transition: border-color 0.2s ease, color 0.2s ease, background 0.2s ease;
+}
+.drop-alt:hover,
+.drop-alt:focus-visible {
+  border-color: var(--acc);
+  color: var(--text);
+  background: var(--acc-soft);
+  outline: none;
+}
