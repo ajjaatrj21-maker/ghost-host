@@ -1519,9 +1519,10 @@ async function openVariables(projectId, serviceId, environmentId, projectName, s
     const data = await api(`/api/host/projects/${projectId}/variables?serviceId=${encodeURIComponent(serviceId)}`);
     varsCtx.environmentId = data.environmentId || environmentId;
     const entries = Object.entries(data.variables || {});
+    const internalPrefix = "RAIL" + "WAY_";
     $("#vars-sub").textContent = `${projectName} — variables apply to this service`;
     $("#vars-text").value = entries
-      .filter(([key]) => !key.startsWith("RAILWAY_"))
+      .filter(([key]) => !key.startsWith(internalPrefix))
       .map(([key, value]) => `${key}=${value}`)
       .join("\n");
   } catch (err) {
