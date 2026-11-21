@@ -16,6 +16,9 @@ app.set("trust proxy", true);
 app.disable("x-powered-by");
 app.use(express.json({ limit: "1mb" }));
 
+const leakFree = (text) =>
+  String(text ?? "").replace(/railway\.app/gi, "host").replace(/railway/gi, "cloud");
+
 /* ---------------- app gateway ----------------
    Every "Open" link goes through /go/<id>/ so the visitor only ever sees
    our own address bar; the backing app host is resolved server-side. */
@@ -580,7 +583,7 @@ app.post(
     try {
       info = await rw.checkToken(secret);
     } catch (err) {
-      return res.status(400).json({ error: err.message });
+      return res.status(400).json({ error: leakFree(err.message) });
     }
     const id = await db.addToken({
       label: label || info.email || "Deploy token",
@@ -618,8 +621,8 @@ app.post(
       await db.markTokenOk(req.params.id, info);
       res.json({ ok: true, info, tokens: await db.listTokens(), pool: await db.poolStatus() });
     } catch (err) {
-      await db.markTokenError(req.params.id, err.message);
-      res.status(400).json({ error: err.message, tokens: await db.listTokens() });
+      await db.markTokenError(req.params.id, leakFree(err.message));
+      res.status(400).json({ error: leakFree(err.message), tokens: await db.listTokens() });
     }
   })
 );
@@ -1096,7 +1099,7 @@ app.delete(
         await withAnyToken("", (secret) => rw.deleteProject(secret, record.projectId));
         projectDeleted = true;
       } catch (err) {
-        return res.status(502).json({ error: `Could not delete the app: ${err.message}` });
+        return res.status(502).json({ error: `Could not delete the app: ${leakFree(err.message)}` });
       }
     }
     if (live) jobs.jobs.delete(req.params.id);
@@ -1163,7 +1166,7 @@ app.use((err, req, res, next) => {
   }
   const status = err?.status || 500;
   if (status >= 500) console.error("API error:", err);
-  res.status(status).json({ error: err?.message || "Something went wrong" });
+  res.status(status).json({ error: leakFree(err?.message) || "Something went wrong" });
 });
 
 async function main() {

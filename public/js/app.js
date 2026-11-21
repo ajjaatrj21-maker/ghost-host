@@ -215,24 +215,76 @@ function handleUnauthorized() {
   }
 }
 
-/* ---------------- terminal ---------------- */
+/* ---------------- log viewer ---------------- */
 
-const TERM_LIMIT = 900;
+const TERM_LIMIT = 1200;
+
+const logTime = (iso) => new Date(iso || Date.now()).toLocaleTimeString([], { hour12: false });
+
+function closeLogBlock(block, state) {
+  if (!block) return;
+  const chip = block.querySelector(".log-state");
+  if (chip && chip.classList.contains("running")) {
+    let next = state;
+    if (next === "done" && block.querySelector(".l-error")) next = "failed";
+    chip.textContent = next;
+    chip.className = `log-state ${next}`;
+  }
+  const dot = block.querySelector(".log-dot");
+  if (dot) {
+    let next = state;
+    if (next === "done" && block.querySelector(".l-error")) next = "failed";
+    dot.className = `log-dot ${next}`;
+  }
+}
+
+function finishLogs(el, status) {
+  const blocks = el.querySelectorAll(".log-block");
+  const last = blocks[blocks.length - 1];
+  if (!last) return;
+  const state = status === "success" ? "success" : status === "failed" ? "failed" : "stopped";
+  closeLogBlock(last, state);
+}
+
+function trimLogs(el) {
+  const rows = el.querySelectorAll(".ln");
+  const extra = rows.length - TERM_LIMIT;
+  if (extra <= 0) return;
+  for (let i = 0; i < extra; i += 1) rows[i].remove();
+  el.querySelectorAll(".log-block").forEach((block) => {
+    if (!block.querySelector(".ln") && block !== el.lastElementChild) block.remove();
+  });
+}
 
 function termLine(el, line) {
-  const row = document.createElement("div");
-  row.className = "ln";
-  const time = new Date(line.t || Date.now()).toLocaleTimeString([], { hour12: false });
-  row.innerHTML = `<span class="t">${esc(time)}</span><span class="l-${esc(line.level || "info")}">${esc(line.message || "")}</span>`;
-  el.appendChild(row);
-  while (el.children.length > TERM_LIMIT) el.removeChild(el.firstChild);
   const auto = $("#autoscroll");
+  if (line.level === "section") {
+    closeLogBlock(el.lastElementChild, "done");
+    const block = document.createElement("div");
+    block.className = "log-block";
+    block.innerHTML =
+      `<div class="log-head"><span class="log-dot"></span><span class="log-title">${esc(line.message || "Build")}</span>` +
+      `<span class="log-time">${esc(logTime(line.t))}</span><span class="log-state running">running</span></div>` +
+      `<div class="log-lines"></div>`;
+    el.appendChild(block);
+  } else {
+    const last = el.lastElementChild;
+    const host = last && last.classList.contains("log-block") ? last.querySelector(".log-lines") : el;
+    const row = document.createElement("div");
+    row.className = "ln";
+    row.innerHTML = `<span class="t">${esc(logTime(line.t))}</span><span class="m l-${esc(line.level || "info")}">${esc(line.message || "")}</span>`;
+    host.appendChild(row);
+    if (line.level === "error") {
+      closeLogBlock(el.lastElementChild, "failed");
+    }
+  }
+  trimLogs(el);
   if (!auto || auto.checked) el.scrollTop = el.scrollHeight;
 }
 
 function termNote(el, text) {
   const row = document.createElement("div");
-  row.className = "ln";
+  row.className = "ln ln-sys";
   row.innerHTML = `<span class="l-sys">${esc(text)}</span>`;
   el.appendChild(row);
   el.scrollTop = el.scrollHeight;
@@ -530,6 +582,7 @@ function applyLiveStatus(job) {
   const done = ["success", "failed", "canceled", "interrupted"].includes(job.status);
   $("#btn-stop").hidden = done;
   if (done) {
+    finishLogs($("#live-term"), job.status);
     setTimeout(loadPublic, 400);
   }
 }
@@ -791,6 +844,7 @@ function applyOwnerStatus(job) {
   }
   const done = ["success", "failed", "canceled", "interrupted"].includes(job.status);
   $("#c-stop").hidden = done;
+  if (done) finishLogs($("#c-live-term"), job.status);
 }
 
 function subscribeOwner(id) {

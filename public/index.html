@@ -3,231 +3,262 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <title>GHOST HOST — Free 24/7 deployments</title>
+    <title>GHOST HOST — Deploy in seconds</title>
     <meta name="description" content="Drop a ZIP or connect a GitHub repo. GHOST HOST builds and runs it 24/7 — free, no token, no signup." />
-    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath d='M32 6c12 0 20 9 20 22v22l-7-5-6 5-7-5-7 5-6-5-7 5V28C12 15 20 6 32 6z' fill='%230a0c11' stroke='%235b8cff' stroke-width='3'/%3E%3Ccircle cx='25' cy='29' r='3.4' fill='%2337e8b0'/%3E%3Ccircle cx='39' cy='29' r='3.4' fill='%2337e8b0'/%3E%3C/svg%3E" />
+    <meta name="theme-color" content="#0b0c0d" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cpath d='M32 6c12 0 20 9 20 22v22l-7-5-6 5-7-5-7 5-6-5-7 5V28C12 15 20 6 32 6z' fill='%230b0c0d' stroke='%238b5cf6' stroke-width='3'/%3E%3Ccircle cx='25' cy='29' r='3.4' fill='%233ecf8e'/%3E%3Ccircle cx='39' cy='29' r='3.4' fill='%233ecf8e'/%3E%3C/svg%3E" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="/css/style.css" />
   </head>
   <body>
-    <canvas id="bg3d" aria-hidden="true"></canvas>
-    <div class="glow" aria-hidden="true"></div>
-
     <!-- ===================== PUBLIC SITE ===================== -->
-    <div id="site">
-      <header class="topbar">
-        <a class="brand" href="#top" aria-label="GHOST HOST home">
-          <svg class="brand-mark" viewBox="0 0 64 64" aria-hidden="true">
-            <path d="M32 4c14 0 23 10 23 25v29l-8-6-7 6-8-6-8 6-7-6-8 6V29C9 14 18 4 32 4z" fill="rgba(91,140,255,.14)" stroke="currentColor" stroke-width="2.5" />
-            <circle cx="24" cy="29" r="3.6" fill="currentColor" />
-            <circle cx="40" cy="29" r="3.6" fill="currentColor" />
-            <path d="M26 40c4 3 8 3 12 0" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" fill="none" />
-          </svg>
-          <span class="brand-name">GHOST<span>HOST</span></span>
-        </a>
-        <nav class="topnav" aria-label="Main">
-          <a href="#deploy">Deploy</a>
-          <a href="#recent">Recent builds</a>
-          <a href="#how">How it works</a>
-        </nav>
-        <div class="top-actions">
-          <span class="pool-pill" id="pool-pill" title="Free deployment slots on the shared pool">
-            <i></i><b id="pool-free">–</b><span>slots free</span>
-          </span>
-          <button class="btn btn-quiet" id="btn-console" type="button" aria-label="Owner console">
-            <svg viewBox="0 0 20 20" aria-hidden="true"><rect x="4" y="9" width="12" height="8" rx="2" /><path d="M7 9V7a3 3 0 016 0v2" /></svg>
-            <span>Owner console</span>
-          </button>
+    <div id="site" class="shell">
+      <aside class="rail" aria-label="Project">
+        <div class="rail-brand">
+          <a class="brand" href="#top" aria-label="GHOST HOST home">
+            <svg class="brand-mark" viewBox="0 0 64 64" aria-hidden="true">
+              <path d="M32 4c14 0 23 10 23 25v29l-8-6-7 6-8-6-8 6-7-6-8 6V29C9 14 18 4 32 4z" fill="rgba(139,92,246,.16)" stroke="currentColor" stroke-width="2.5" />
+              <circle cx="24" cy="29" r="3.6" fill="currentColor" />
+              <circle cx="40" cy="29" r="3.6" fill="currentColor" />
+              <path d="M26 40c4 3 8 3 12 0" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" fill="none" />
+            </svg>
+            <span class="brand-name">GHOST<b>HOST</b></span>
+          </a>
+          <span class="rail-env">shared pool</span>
         </div>
-      </header>
 
-      <main id="top">
-        <section class="hero">
-          <div class="hero-copy">
-            <span class="eyebrow"><i></i>Shared deploy pool · live 24/7</span>
-            <h1>Ship your app in seconds.<br /><span class="grad">No token needed.</span></h1>
-            <p class="lede">
-              Drop a ZIP or paste a GitHub repo. GHOST HOST builds it, starts it and keeps it running on
-              our shared pool. You never touch an API token, never make an account.
-            </p>
-            <div class="hero-actions">
-              <a class="btn btn-primary" href="#deploy">Deploy my app</a>
-              <a class="btn btn-ghost" href="#how">See how it works</a>
+        <nav class="rail-nav">
+          <span class="rail-label">Project</span>
+          <a class="rail-link is-active" href="#deploy">
+            <svg viewBox="0 0 16 16"><path d="M8 3v10M3 8h10" /></svg>
+            New deployment
+          </a>
+          <a class="rail-link" href="#live">
+            <svg viewBox="0 0 16 16"><path d="M3 5l4 3-4 3M9 11h4" /></svg>
+            Build logs
+          </a>
+          <a class="rail-link" href="#recent">
+            <svg viewBox="0 0 16 16"><path d="M3 3h10M3 8h10M3 13h6" /></svg>
+            Deployments
+          </a>
+          <a class="rail-link" href="#how">
+            <svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="5.4" /><path d="M8 7v4M8 5.2v.2" /></svg>
+            How it works
+          </a>
+        </nav>
+
+        <div class="rail-foot">
+          <div class="pool-card">
+            <div class="pool-card-top">
+              <span class="pool-pill" id="pool-pill" title="Free deployment slots on the shared pool">
+                <i></i><b id="pool-free">–</b><span>slots free</span>
+              </span>
             </div>
-            <ul class="hero-points">
-              <li><svg viewBox="0 0 16 16"><path d="M3 8.5l3.2 3L13 5" /></svg>ZIP or GitHub</li>
-              <li><svg viewBox="0 0 16 16"><path d="M3 8.5l3.2 3L13 5" /></svg>Live build logs</li>
-              <li><svg viewBox="0 0 16 16"><path d="M3 8.5l3.2 3L13 5" /></svg>Always-on restarts</li>
-              <li><svg viewBox="0 0 16 16"><path d="M3 8.5l3.2 3L13 5" /></svg>Unlimited history</li>
-            </ul>
+            <p>Always-on builds on the shared pool.</p>
           </div>
+          <button class="rail-console" id="btn-console" type="button" aria-label="Owner console">
+            <svg viewBox="0 0 20 20" aria-hidden="true"><rect x="4" y="9" width="12" height="8" rx="2" /><path d="M7 9V7a3 3 0 016 0v2" /></svg>
+            Owner console
+          </button>
+          <span class="rail-ver" id="footer-ver"></span>
+        </div>
+      </aside>
 
-          <!-- Deploy card -->
-          <div class="card deploy-card" id="deploy">
-            <div class="card-head">
-              <div>
-                <h2>New deployment</h2>
-                <p>Free · runs on the GHOST pool</p>
-              </div>
-              <span class="chip" id="slot-chip"><i></i><span id="slot-chip-text">checking slots…</span></span>
-            </div>
-
-            <label class="field">
-              <span>Your name <em>owner sees this</em></span>
-              <input id="deploy-name" maxlength="24" placeholder="e.g. Aryan" autocomplete="nickname" />
-            </label>
-
-            <div class="seg" role="tablist" aria-label="Deploy source">
-              <button class="seg-btn is-active" type="button" data-type="zip" role="tab" aria-selected="true">ZIP upload</button>
-              <button class="seg-btn" type="button" data-type="github" role="tab" aria-selected="false">GitHub repo</button>
-            </div>
-
-            <div class="pane" data-pane="zip">
-              <div class="drop" id="dz" tabindex="0" role="button" aria-label="Choose a ZIP file">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5M4 16.5V19a2 2 0 002 2h12a2 2 0 002-2v-2.5" /></svg>
-                <strong>Drop your .zip here</strong>
-                <span>or click to browse · up to <b id="zip-limit">1024</b> MB</span>
-                <input id="file" type="file" accept=".zip,application/zip" hidden />
-              </div>
-              <button class="drop-alt" type="button" id="pick-folder">
-                No ZIP handy? Pick a whole folder — we'll zip it for you
-              </button>
-              <input id="folder" type="file" webkitdirectory multiple hidden />
-              <div class="file-row" id="file-meta" hidden>
-                <span class="file-ico">ZIP</span>
-                <div class="file-info"><b id="file-name">—</b><span id="file-size"></span></div>
-                <button class="icon-btn" type="button" id="file-remove" aria-label="Remove file">✕</button>
-              </div>
-            </div>
-
-            <div class="pane" data-pane="github" hidden>
-              <label class="field">
-                <span>Repository</span>
-                <input id="gh-repo" placeholder="username/repo or github.com/username/repo" spellcheck="false" />
-              </label>
-              <label class="field">
-                <span>Branch <em>optional</em></span>
-                <input id="gh-branch" placeholder="main" spellcheck="false" />
-              </label>
-            </div>
-
-            <label class="field">
-              <span>Project name</span>
-              <input id="deploy-project" placeholder="my-app" spellcheck="false" maxlength="60" />
-              <small>Letters, numbers, dashes. This becomes your project name.</small>
-            </label>
-
-            <label class="field">
-              <span>Environment variables <em>optional</em></span>
-              <textarea id="deploy-env" rows="3" spellcheck="false" placeholder="KEY=value — one per line"></textarea>
-            </label>
-
-            <p class="form-error" id="deploy-error" role="alert"></p>
-            <button class="btn btn-primary btn-block" id="btn-deploy" type="button">
-              <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 3v10m0-10L5.5 7.5M10 3l4.5 4.5M4 14v2a1.5 1.5 0 001.5 1.5h9A1.5 1.5 0 0016 16v-2" /></svg>
-              Deploy now
-            </button>
-            <p class="fineprint" id="deploy-limit"></p>
+      <div class="work">
+        <header class="work-top">
+          <div class="crumbs">
+            <span class="crumb-root">ghost-host</span>
+            <span class="crumb-sep">/</span>
+            <b>new deployment</b>
           </div>
-        </section>
+          <div class="work-top-right">
+            <span class="chip" id="slot-chip"><i></i><span id="slot-chip-text">checking slots…</span></span>
+            <span class="env-badge">production</span>
+          </div>
+        </header>
 
-        <!-- Live console -->
-        <section class="live-wrap" id="live" hidden>
-          <div class="card live-card">
-            <div class="card-head">
-              <div class="live-title">
-                <span class="status-dot" id="live-dot"></span>
+        <main id="top" class="work-main">
+          <section class="page-head">
+            <div>
+              <h1>Deploy something</h1>
+              <p>Drop a ZIP or link a GitHub repo. It builds and goes live on the shared 24/7 pool — no account, no token.</p>
+            </div>
+            <div class="page-badges">
+              <span class="mini-badge">ZIP or GitHub</span>
+              <span class="mini-badge">Live build logs</span>
+              <span class="mini-badge">Always-on restarts</span>
+            </div>
+          </section>
+
+          <!-- Deploy -->
+          <section class="deploy-grid" id="deploy">
+            <div class="card form-card">
+              <div class="card-head">
                 <div>
-                  <h2 id="live-project">Deployment</h2>
-                  <p id="live-stage">Preparing…</p>
+                  <h2>New deployment</h2>
+                  <p>Free · runs on the GHOST pool</p>
                 </div>
               </div>
-              <div class="live-actions">
-                <a class="btn btn-ghost btn-sm" id="live-url" href="#" target="_blank" rel="noopener" hidden>Open site</a>
-                <button class="btn btn-danger btn-sm" id="btn-stop" type="button">Stop</button>
+
+              <label class="field">
+                <span>Your name <em>owner sees this</em></span>
+                <input id="deploy-name" maxlength="24" placeholder="e.g. Aryan" autocomplete="nickname" />
+              </label>
+
+              <div class="seg" role="tablist" aria-label="Deploy source">
+                <button class="seg-btn is-active" type="button" data-type="zip" role="tab" aria-selected="true">ZIP upload</button>
+                <button class="seg-btn" type="button" data-type="github" role="tab" aria-selected="false">GitHub repo</button>
+              </div>
+
+              <div class="pane" data-pane="zip">
+                <div class="drop" id="dz" tabindex="0" role="button" aria-label="Choose a ZIP file">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5M4 16.5V19a2 2 0 002 2h12a2 2 0 002-2v-2.5" /></svg>
+                  <strong>Drop your .zip here</strong>
+                  <span>or click to browse · up to <b id="zip-limit">1024</b> MB</span>
+                  <input id="file" type="file" accept=".zip,application/zip" hidden />
+                </div>
+                <button class="drop-alt" type="button" id="pick-folder">
+                  No ZIP handy? Pick a whole folder — we'll zip it for you
+                </button>
+                <input id="folder" type="file" webkitdirectory multiple hidden />
+                <div class="file-row" id="file-meta" hidden>
+                  <span class="file-ico">ZIP</span>
+                  <div class="file-info"><b id="file-name">—</b><span id="file-size"></span></div>
+                  <button class="icon-btn" type="button" id="file-remove" aria-label="Remove file">✕</button>
+                </div>
+              </div>
+
+              <div class="pane" data-pane="github" hidden>
+                <label class="field">
+                  <span>Repository</span>
+                  <input id="gh-repo" placeholder="username/repo or github.com/username/repo" spellcheck="false" />
+                </label>
+                <label class="field">
+                  <span>Branch <em>optional</em></span>
+                  <input id="gh-branch" placeholder="main" spellcheck="false" />
+                </label>
+              </div>
+
+              <label class="field">
+                <span>Project name</span>
+                <input id="deploy-project" placeholder="my-app" spellcheck="false" maxlength="60" />
+                <small>Letters, numbers, dashes. This becomes your project name.</small>
+              </label>
+
+              <label class="field">
+                <span>Environment variables <em>optional</em></span>
+                <textarea id="deploy-env" rows="3" spellcheck="false" placeholder="KEY=value — one per line"></textarea>
+              </label>
+
+              <p class="form-error" id="deploy-error" role="alert"></p>
+              <button class="btn btn-primary btn-block" id="btn-deploy" type="button">
+                <svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 3v10m0-10L5.5 7.5M10 3l4.5 4.5M4 14v2a1.5 1.5 0 001.5 1.5h9A1.5 1.5 0 0016 16v-2" /></svg>
+                Deploy now
+              </button>
+              <p class="fineprint" id="deploy-limit"></p>
+            </div>
+
+            <aside class="side-stack">
+              <div class="card">
+                <div class="card-head"><h2>Live numbers</h2></div>
+                <div class="stats">
+                  <div class="stat"><span id="stat-deploys">0</span><small>deployments</small></div>
+                  <div class="stat"><span id="stat-builders">0</span><small>builders</small></div>
+                  <div class="stat"><span id="stat-live">0</span><small>apps live</small></div>
+                  <div class="stat"><span id="stat-slots">0</span><small>slots free</small></div>
+                </div>
+              </div>
+              <div class="card">
+                <div class="card-head"><h2>What happens next</h2></div>
+                <ol class="hint-list">
+                  <li>Your archive is unpacked and the stack is detected automatically.</li>
+                  <li>A free slot on the shared pool is picked for the build.</li>
+                  <li>If one slot can't take the build, the next one is tried automatically.</li>
+                  <li>Build and deploy logs stream here live, then you get a public URL.</li>
+                </ol>
+              </div>
+            </aside>
+          </section>
+
+          <!-- Live console -->
+          <section class="live-wrap" id="live" hidden>
+            <div class="card logcard">
+              <div class="logcard-head">
+                <div class="live-title">
+                  <span class="status-dot" id="live-dot"></span>
+                  <div>
+                    <h2 id="live-project">Deployment</h2>
+                    <p id="live-stage">Preparing…</p>
+                  </div>
+                </div>
+                <div class="live-actions">
+                  <a class="btn btn-ghost btn-sm" id="live-url" href="#" target="_blank" rel="noopener" hidden>Open site ↗</a>
+                  <button class="btn btn-danger btn-sm" id="btn-stop" type="button">Stop</button>
+                </div>
+              </div>
+              <div class="log-toolbar">
+                <span class="log-tab is-active">Build &amp; deploy logs</span>
+                <span class="log-meta" id="live-id"></span>
+                <label class="switch"><input type="checkbox" id="autoscroll" checked /><span></span>Autoscroll</label>
+              </div>
+              <div class="terminal" id="live-term" aria-live="polite"></div>
+            </div>
+          </section>
+
+          <!-- Recent builds -->
+          <section id="recent" class="block">
+            <div class="section-head">
+              <div>
+                <h2>Recent deployments</h2>
+                <p>Public builds that ran through this panel.</p>
+              </div>
+              <button class="btn btn-quiet btn-sm" id="btn-refresh-recent" type="button">Refresh</button>
+            </div>
+            <div class="card list-card">
+              <div class="build-row head">
+                <span>Project</span><span>Builder</span><span>Source</span><span>Status</span><span>When</span>
+              </div>
+              <div id="recent-list"></div>
+              <p class="empty" id="recent-empty">No public builds yet. Yours could be the first.</p>
+            </div>
+          </section>
+
+          <!-- How it works -->
+          <section id="how" class="block">
+            <div class="section-head">
+              <div>
+                <h2>How it works</h2>
+                <p>Three steps. Zero setup.</p>
               </div>
             </div>
-            <div class="terminal" id="live-term" aria-live="polite"></div>
-            <div class="live-foot">
-              <span id="live-id"></span>
-              <label class="switch"><input type="checkbox" id="autoscroll" checked /><span></span>Autoscroll</label>
+            <div class="steps">
+              <article class="step">
+                <span class="step-n">01</span>
+                <h3>Bring the code</h3>
+                <p>Upload a ZIP of your project or point us at a public GitHub repo. We detect the stack automatically.</p>
+              </article>
+              <article class="step">
+                <span class="step-n">02</span>
+                <h3>We pick a slot</h3>
+                <p>A deploy slot from the shared pool is assigned to your build. If one account can't take it, the next one is tried until it goes through.</p>
+              </article>
+              <article class="step">
+                <span class="step-n">03</span>
+                <h3>Watch it go live</h3>
+                <p>Streaming build and deploy logs, then a public URL. Restart policy is set to always, so it stays up 24/7.</p>
+              </article>
             </div>
-          </div>
-        </section>
+          </section>
+        </main>
 
-        <!-- Stats -->
-        <section class="stats" aria-label="Live numbers">
-          <div class="stat"><span id="stat-deploys">0</span><small>deployments delivered</small></div>
-          <div class="stat"><span id="stat-builders">0</span><small>builders served</small></div>
-          <div class="stat"><span id="stat-live">0</span><small>apps live now</small></div>
-          <div class="stat"><span id="stat-slots">0</span><small>free slots right now</small></div>
-        </section>
-
-        <!-- Recent builds -->
-        <section id="recent" class="block">
-          <div class="section-head">
-            <div>
-              <span class="kicker">Activity</span>
-              <h2>Recent builds</h2>
-            </div>
-            <button class="btn btn-quiet btn-sm" id="btn-refresh-recent" type="button">Refresh</button>
-          </div>
-          <div class="card list-card">
-            <div class="build-row head">
-              <span>Project</span><span>Builder</span><span>Source</span><span>Status</span><span>When</span>
-            </div>
-            <div id="recent-list"></div>
-            <p class="empty" id="recent-empty">No public builds yet. Yours could be the first.</p>
-          </div>
-        </section>
-
-        <!-- How it works -->
-        <section id="how" class="block">
-          <div class="section-head">
-            <div>
-              <span class="kicker">Process</span>
-              <h2>Three steps. Zero setup.</h2>
-            </div>
-          </div>
-          <div class="steps">
-            <article class="step">
-              <span class="step-n">01</span>
-              <h3>Bring the code</h3>
-              <p>Upload a ZIP of your project or point us at a public GitHub repo. We detect the stack automatically.</p>
-            </article>
-            <article class="step">
-              <span class="step-n">02</span>
-              <h3>We pick a slot</h3>
-              <p>A deploy token from the shared pool is assigned to your build. You never enter or see one.</p>
-            </article>
-            <article class="step">
-              <span class="step-n">03</span>
-              <h3>Watch it go live</h3>
-              <p>Real-time build logs, then a public URL. Restart policy is set to always, so it stays up 24/7.</p>
-            </article>
-          </div>
-        </section>
-
-        <section class="block features">
-          <article class="feature"><h3>Nothing to install</h3><p>No CLI, no account, no card. Your browser plus a ZIP is enough.</p></article>
-          <article class="feature"><h3>Streamed logs</h3><p>Every build step is pushed to your console as it happens, not after the fact.</p></article>
-          <article class="feature"><h3>Kept alive</h3><p>Services are configured with an always-restart policy instead of sleeping.</p></article>
-          <article class="feature"><h3>Your history</h3><p>Come back later and your deployments are still listed under your visitor ID.</p></article>
-        </section>
-      </main>
-
-      <footer class="footer">
-        <div class="brand small">
-          <svg class="brand-mark" viewBox="0 0 64 64" aria-hidden="true">
-            <path d="M32 4c14 0 23 10 23 25v29l-8-6-7 6-8-6-8 6-7-6-8 6V29C9 14 18 4 32 4z" fill="rgba(91,140,255,.14)" stroke="currentColor" stroke-width="2.5" />
-            <circle cx="24" cy="29" r="3.6" fill="currentColor" /><circle cx="40" cy="29" r="3.6" fill="currentColor" />
-          </svg>
-          <span class="brand-name">GHOST<span>HOST</span></span>
-        </div>
-        <p>Powered by GHOST HOST. <span id="footer-ver"></span></p>
-      </footer>
+        <footer class="footer">
+          <span>Powered by GHOST HOST</span>
+          <span class="dot-sep">·</span>
+          <span>deployed from the shared pool</span>
+        </footer>
+      </div>
     </div>
 
     <!-- ===================== OWNER CONSOLE ===================== -->
@@ -237,7 +268,7 @@
           <button class="icon-btn back" id="btn-back" type="button" aria-label="Back to site">
             <svg viewBox="0 0 20 20"><path d="M12 4L6 10l6 6" /></svg>
           </button>
-          <span class="brand-name">GHOST<span>HOST</span></span>
+          <span class="brand-name">GHOST<b>HOST</b></span>
           <span class="owner-tag">owner</span>
         </div>
         <div class="console-top-right">
@@ -248,6 +279,7 @@
 
       <div class="console-body">
         <aside class="cside" aria-label="Console sections">
+          <span class="rail-label">Console</span>
           <button class="ctab is-active" data-tab="overview" type="button">Overview</button>
           <button class="ctab" data-tab="deploy" type="button">Deploy</button>
           <button class="ctab" data-tab="tokens" type="button">Token pool</button>
@@ -265,7 +297,7 @@
           <!-- Overview -->
           <section class="panel is-active" data-panel="overview">
             <div class="panel-head">
-              <div><h1>Overview</h1><p>Who is deploying, on which token, right now.</p></div>
+              <div><h1>Overview</h1><p>Who is deploying, on which slot, right now.</p></div>
               <button class="btn btn-quiet btn-sm" id="btn-refresh-ov" type="button">Refresh</button>
             </div>
             <div class="grid-4">
@@ -276,7 +308,7 @@
             </div>
             <div class="split">
               <div class="card">
-                <div class="card-head"><h2>Token pool usage</h2><span class="chip" id="ov-pool-chip">0 tokens</span></div>
+                <div class="card-head"><h2>Pool usage</h2><span class="chip" id="ov-pool-chip">0 tokens</span></div>
                 <div id="ov-pool" class="pool-list"></div>
                 <p class="empty" id="ov-pool-empty">No tokens yet. Add one in the Token pool tab.</p>
               </div>
@@ -295,7 +327,7 @@
           <!-- Owner deploy -->
           <section class="panel" data-panel="deploy">
             <div class="panel-head">
-              <div><h1>Deploy</h1><p>Owner builds use the same pool — a free token slot is picked automatically.</p></div>
+              <div><h1>Deploy</h1><p>Owner builds use the same pool — a free slot is picked automatically.</p></div>
             </div>
             <div class="split wide-left">
               <form class="card" id="form-owner-deploy">
@@ -324,8 +356,8 @@
                 <p class="form-error" id="c-deploy-error" role="alert"></p>
                 <button class="btn btn-primary btn-block" type="submit">Start deployment</button>
               </form>
-              <div class="card live-card">
-                <div class="card-head">
+              <div class="card logcard">
+                <div class="logcard-head">
                   <div class="live-title">
                     <span class="status-dot" id="c-live-dot"></span>
                     <div><h2 id="c-live-project">Console</h2><p id="c-live-stage">No job running.</p></div>
@@ -335,6 +367,7 @@
                     <button class="btn btn-danger btn-sm" id="c-stop" type="button" hidden>Stop</button>
                   </div>
                 </div>
+                <div class="log-toolbar"><span class="log-tab is-active">Build &amp; deploy logs</span></div>
                 <div class="terminal tall" id="c-live-term"></div>
               </div>
             </div>
@@ -365,7 +398,7 @@
                 <ol class="hint-list">
                   <li>Public visitors never see or enter a token.</li>
                   <li>Each build reserves one free slot on the healthiest token.</li>
-                  <li>Priority decides who gets picked first; usage keeps things balanced.</li>
+                  <li>If a slot fails, the next account is tried automatically until the build is live.</li>
                   <li>A rejected token is marked and skipped until you re-check it.</li>
                   <li>Slots free up automatically when a build finishes or fails.</li>
                 </ol>
@@ -493,7 +526,6 @@
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-    <script type="module" async src="/js/scene.js"></script>
     <script src="/js/vendor/fflate.js" defer></script>
     <script src="/js/app.js" defer></script>
   </body>
