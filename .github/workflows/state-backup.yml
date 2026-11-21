@@ -1,0 +1,46 @@
+name: state-backup
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  save:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fetch encrypted state
+        run: |
+          curl -fsS -m 90 https://ghost-host-9u49.onrender.com/api/state/export -o /tmp/state.json
+          node -e "const j=require('/tmp/state.json');if(j.empty||!j.blob){console.log('state-empty');require('fs').writeFileSync('/tmp/go','0')}else{require('fs').writeFileSync('/tmp/go','1')}"
+          echo "go=$(cat /tmp/go)" >> "$GITHUB_OUTPUT"
+        id: state
+
+      - uses: actions/checkout@v4
+        if: steps.state.outputs.go == '1'
+        with:
+          fetch-depth: 0
+
+      - name: Commit to backup branch
+        if: steps.state.outputs.go == '1'
+        run: |
+          git config user.name "state-backup"
+          git config user.email "state-backup@users.noreply.github.com"
+          if git fetch origin backup 2>/dev/null; then
+            git checkout -B backup origin/backup
+          else
+            git checkout -B backup
+          fi
+          new=$(node -e "console.log(require('/tmp/state.json').hash)")
+          old=$(node -e "try{console.log(require('./backup.json').hash||'')}catch(e){console.log('')}")
+          if [ "$new" = "$old" ]; then
+            echo "No state change."
+            exit 0
+          fi
+          cp /tmp/state.json backup.json
+          git add backup.json
+          git commit -m "state snapshot"
+          git push origin backup

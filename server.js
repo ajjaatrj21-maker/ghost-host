@@ -2,11 +2,13 @@ const express = require("express");
 const crypto = require("crypto");
 const path = require("path");
 const fs = require("fs");
+const zlib = require("zlib");
 const { Readable } = require("stream");
 const multer = require("multer");
 const { probeZip } = require("./lib/zip");
 const config = require("./lib/config");
 const db = require("./lib/db");
+const backup = require("./lib/backup");
 const rw = require("./lib/railway");
 const jobs = require("./lib/jobs");
 const deploy = require("./lib/deploy");
@@ -291,6 +293,14 @@ app.get(
     });
   })
 );
+
+/* Encrypted state snapshot. Only ciphertext leaves the box; the key never does. */
+app.get("/api/state/export", (req, res) => {
+  db.flushSnapshot();
+  const sealed = backup.sealState();
+  res.setHeader("Cache-Control", "no-store");
+  res.json({ ok: true, empty: sealed.empty, hash: sealed.hash, blob: sealed.blob });
+});
 
 app.post("/api/login", (req, res) => {
   const ip = req.ip || "local";
@@ -1145,7 +1155,51 @@ function normalizeRepo(value) {
   return /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(raw) ? raw : "";
 }
 
-app.use(express.static(path.join(config.ROOT, "public"), { extensions: ["html"] }));
+/* Compress the console bundle and let browsers keep it between visits. */
+function gzipAssets(req, res, next) {
+  if (!/\bgzip\b/i.test(req.headers["accept-encoding"] || "")) return next();
+  const chunks = [];
+  const end = res.end.bind(res);
+  const push = (chunk, encoding) => {
+    if (chunk) chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk, typeof encoding === "string" ? encoding : "utf8"));
+  };
+  res.write = (chunk, encoding, done) => {
+    push(chunk, encoding);
+    if (typeof encoding === "function") encoding();
+    else if (typeof done === "function") done();
+    return true;
+  };
+  res.end = (chunk, encoding, done) => {
+    if (typeof chunk === "function") {
+      done = chunk;
+      chunk = null;
+      encoding = undefined;
+    }
+    push(chunk, encoding);
+    const cb = typeof encoding === "function" ? encoding : done;
+    const body = Buffer.concat(chunks);
+    if (body.length > 1024 && res.statusCode === 200 && !res.getHeader("content-encoding")) {
+      const gz = zlib.gzipSync(body);
+      res.setHeader("content-encoding", "gzip");
+      res.setHeader("vary", "Accept-Encoding");
+      res.setHeader("content-length", gz.length);
+      return end(gz, cb);
+    }
+    return end(body, cb);
+  };
+  next();
+}
+app.use(["/css", "/js"], gzipAssets);
+
+app.use(
+  express.static(path.join(config.ROOT, "public"), {
+    extensions: ["html"],
+    maxAge: "7d",
+    setHeaders(res, filePath) {
+      if (/\.html$/i.test(filePath)) res.setHeader("Cache-Control", "no-cache");
+    },
+  })
+);
 
 app.get("*", (req, res, next) => {
   if (req.path.startsWith("/api/")) return next();
@@ -1170,6 +1224,8 @@ app.use((err, req, res, next) => {
 });
 
 async function main() {
+  await backup.restoreIfEmpty();
+  db.refreshFromDisk();
   await db.init();
   await jobs.recover();
   jobs.setRunner(deploy.runJob);
@@ -1184,6 +1240,14 @@ async function main() {
     console.log(`  Storage: ${status.mode === "mongo" ? "MongoDB" : "local JSON (fallback)"}`);
     console.log(`${line}\n`);
   });
+
+  /* Keep the host from idling out, so visitors never wait on a cold start. */
+  const selfUrl = String(process.env.RENDER_EXTERNAL_URL || "").trim().replace(/\/+$/, "");
+  if (selfUrl) {
+    setInterval(() => {
+      fetch(`${selfUrl}/api/health`).catch(() => {});
+    }, 9 * 60 * 1000).unref();
+  }
 }
 
 process.on("SIGINT", () => process.exit(0));
